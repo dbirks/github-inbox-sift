@@ -1,0 +1,12 @@
+{
+  "name": "github-inbox-sift-e2e",
+  "private": true,
+  "description": "Dev-only: Playwright E2E tests. End users never need Node.",
+  "scripts": {
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  },
+  "packageManager": "pnpm@12.14.0"
+}
