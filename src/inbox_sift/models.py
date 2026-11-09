@@ -29,7 +29,7 @@ def iso(dt: datetime) -> str:
 
 
 def parse_iso(s: str) -> datetime:
-    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return datetime.fromisoformat(s)  # 3.11+ parses a trailing Z
 
 
 def make_id(host: str, thread_id: str) -> str:
@@ -38,7 +38,7 @@ def make_id(host: str, thread_id: str) -> str:
 
 
 def is_bot(login: str | None) -> bool:
-    return bool(login) and (login.endswith("[bot]") or login.endswith("-bot"))
+    return bool(login) and login.endswith(("[bot]", "-bot"))
 
 
 @dataclass(slots=True)
