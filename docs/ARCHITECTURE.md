@@ -319,20 +319,29 @@ Static: `/` serves `static/index.html`; `/static/...` serves the rest. Cache-Con
 Vanilla ES modules under `static/js/`, loaded by `<script type="module" src="/static/js/main.js">`.
 
 ```
-js/dom.js        h(tag, props, ...children), icon(name, size), clear(el), fmtAge(iso, now), fmtCount(n)   (written)
-js/api.js        thin fetch wrapper: api.get(path, params), api.post(path, body), api.put(path, body)       (written)
-js/store.js      createStore(initial): {get(), set(patch|fn), subscribe(fn)}; initialState                (written)
-js/actions.js    every state transition + API call; views call ctx.actions.* only                          (written)
+js/dom.js        h(), icon(), render(), clear(), fmtAge(), fmtCount(), same(), debounce(), isEditable(),
+                 reasonTag(reason)->[label, icon], kindInfo(kind)->[icon, label], isBot(login)          (written)
+js/api.js        api.get(path, params) / api.post(path, body) / api.put(path, body); ApiError{status, code}  (written)
+js/store.js      createStore(): {get(), set(patch|fn), subscribe(fn)}; initialState()                      (written)
+js/actions.js    createActions(store) + selectors currentId(s), currentItem(s), pickedIds(s), pickCount(s)  (written)
 js/keyboard.js   global key handling (design-handoff §10)                                                   (written)
-js/main.js       boot: theme, layout, mount views, subscribe, title, polling                                (written)
-js/components/   popover.js dialog.js tooltip.js avatar.js tag.js                                           (worker)
-js/views/        nav.js list.js panel.js statusbar.js repos.js people.js settings.js help.js bulk.js         (workers)
-css/tokens.css   tokens + fonts (written)   css/base.css  buttons/tags/focus (written)
-css/layout.css   shell grid (written)       css/views/*.css  one per view (workers)
+js/main.js       boot, computeLayout(s) -> {navPx, drPx, listMin, cols, showPanel}, theme, tab title         (written)
+js/components/   popover.js dialog.js tooltip.js                                                            (worker)
+js/views/nav.js        mounts into #nav
+js/views/list.js       mounts a container into #main (list header, search, selection bar, rows, bulk tray)
+js/views/pages.js      mounts a container into #main (repositories, people, settings)
+js/views/panel.js      mounts into #panel (detail panel)
+js/views/statusbar.js  mounts into #statusbar (host chips + popovers, poll text, shortcut hint, bulk chip)
+js/views/overlays.js   mounts into #overlays (bulk confirm dialog, shortcut sheet, toast)
+css/tokens.css base.css layout.css (written)      css/views/<view>.css (one per view module; pages.css, overlays.css)
 ```
 
-Every view module exports `mount(root: HTMLElement, ctx) -> { update(state) }` where
-`ctx = { store, actions, api }`. `update` is called after every store change; views diff cheaply (compare the
+`ctx = { store, actions, api, geom }` where `geom()` returns `computeLayout(store.get())` (effective nav/panel
+widths; the panel uses `drPx` for its responsive button labels). `list.js` and `pages.js` share `#main`: each
+appends its own child container and sets `hidden` on it when `state.view` isn't theirs. Debug handle:
+`window.__inboxSift = ctx`.
+
+Every view module exports `mount(root: HTMLElement, ctx) -> { update(state) }`. `update` is called after every store change; views diff cheaply (compare the
 slices they use against the last render and return early). Views never call `fetch` directly.
 
 ### Store shape (`store.js` initialState)

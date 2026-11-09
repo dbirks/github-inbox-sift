@@ -1,0 +1,14 @@
+/* App shell grid (design-handoff §3). Column widths are computed in main.js (computeLayout) and set as
+   --cols on #shell, because the width rules depend on the viewport and saved widths. */
+#shell { height: 100vh; display: grid; grid-template-columns: var(--cols, 212px minmax(480px, 1fr));
+  grid-template-rows: minmax(0, 1fr) 28px; overflow: hidden; background: var(--paper); }
+#nav { position: relative; min-width: 0; min-height: 0; }
+#main { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+#panel { min-width: 0; min-height: 0; }
+#panel:empty, #panel[hidden] { display: none; }
+#statusbar { grid-column: 1 / -1; position: relative; }
+
+/* Resize handles (§3): 8px, straddle the column edge, 2px accent line on hover. */
+.resize { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: col-resize; z-index: 4; }
+.resize:hover, .resize:focus-visible, .resize.dragging { background: linear-gradient(90deg, transparent 3px, var(--accent) 3px 5px, transparent 5px); outline: none; }
+body.col-resizing { cursor: col-resize; user-select: none; }

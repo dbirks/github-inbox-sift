@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inbox Sift</title>
+  <link rel="icon" type="image/svg+xml" href="/static/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/brand/favicon-32.png">
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/views/nav.css">
+  <link rel="stylesheet" href="/static/css/views/list.css">
+  <link rel="stylesheet" href="/static/css/views/panel.css">
+  <link rel="stylesheet" href="/static/css/views/statusbar.css">
+  <link rel="stylesheet" href="/static/css/views/pages.css">
+  <link rel="stylesheet" href="/static/css/views/overlays.css">
+</head>
+<body>
+  <div id="shell" data-testid="app-shell">
+    <nav id="nav" data-testid="nav" aria-label="Views"></nav>
+    <main id="main"></main>
+    <aside id="panel" data-testid="panel" aria-label="Notification details" hidden></aside>
+    <footer id="statusbar" data-testid="statusbar"></footer>
+  </div>
+  <div id="overlays"></div>
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
