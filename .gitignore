@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.pi-orch/
+.playwright-cli/
+node_modules/
+test-results/
+playwright-report/
+.pytest_cache/
+.ruff_cache/
+dist/
+*.db
+*.db-wal
+*.db-shm

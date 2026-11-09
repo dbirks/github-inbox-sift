@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Text:wght@400;500;600;700&family=Red+Hat+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1f1e1c;font-family:'Red Hat Text',sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+input:focus{outline:none}
+[data-theme]{--paper:#f8f7f3;--surface:#ffffff;--ink:#1e1d1a;--ink2:#3a3833;--muted:#6b675e;--line-strong:#cfcac0;--line:#e6e2d9;--line-soft:#f0ede6;--fill:#efede7;--fill-edge:#cfc9bd;--accent:#2f4bd6;--accent-edge:#2238a8;--accent-shadow:#1a2d8f;--accent-text:#2a43b8;--accent-wash:#f6f7fe;--accent-ring:#dfe4fa;--accent-grid:#e4e8fa;--wait-tag:#ffecc2;--wait-fg:#7a4a00;--wait-bar:#fbe7b4;--wait-body:#fdf6e4;--wait-edge:#e8cf94;--wait-pfg:#5c3d00;--q-tag:#eeece6;--q-fg:#5e5a52;--q-body:#faf9f6;--q-edge:#dcd8ce;--q-pfg:#4a4740;--run-tag:#d9eefa;--run-fg:#0f5e96;--run-strong:#1a6da6;--fail-tag:#fdd8d2;--fail-fg:#b0281a;--fail-edge:#e5b2a8;--fail-body:#fbefec;--fail-pfg:#7f2215;--fail-strong:#c02a1a;--done-tag:#d9f0de;--done-fg:#1f6b37;--seg-done:#4a4740;--overlay:rgba(30,29,26,.28);--accent-dither:#dde2f8;color:var(--ink)}
+[data-theme="dark"]{--paper:#1f1e1c;--surface:#282725;--ink:#ecebe6;--ink2:#d2cfc7;--muted:#a39f95;--line-strong:#4a4843;--line:#3a3935;--line-soft:#312f2c;--fill:#34332f;--fill-edge:#171614;--accent:#3f5ae6;--accent-edge:#2238a8;--accent-shadow:#0d1755;--accent-text:#9aabf2;--accent-wash:#2b2e3e;--accent-ring:#3b4472;--accent-grid:#343a56;--wait-tag:#4a3a14;--wait-fg:#ffd58a;--wait-bar:#4a3a14;--wait-body:#2e291d;--wait-edge:#6b5520;--wait-pfg:#ffd58a;--q-tag:#3a3935;--q-fg:#c9c5bc;--q-body:#2b2a27;--q-edge:#4a4843;--q-pfg:#d2cfc7;--run-tag:#183a52;--run-fg:#9fd2f5;--run-strong:#4aa3e0;--fail-tag:#4a201b;--fail-fg:#ff9c8c;--fail-edge:#6b2a22;--fail-body:#33221f;--fail-pfg:#ffb3a6;--fail-strong:#e0503d;--done-tag:#1d3a26;--done-fg:#8fd4a3;--seg-done:#c9c5bc;--overlay:rgba(0,0,0,.5);--accent-dither:#3a4266}
+</style>
+</helmet>
+<div data-theme="{{ themeAttr }}" style="height:100vh;position:relative;background:var(--paper);color:var(--ink)">
+<div style="height:100vh;display:grid;grid-template-columns:{{ cols }};grid-template-rows:minmax(0,1fr) 28px;overflow:hidden">
+ <nav style="position:relative;border-right:1px solid var(--line);padding:16px {{ navPadX }};display:flex;flex-direction:column;gap:2px;background:var(--surface);font-size:12.5px;min-height:0;min-width:0">
+  <div onMouseDown="{{ startNavDrag }}" onDoubleClick="{{ resetNav }}" title="Drag to resize · double-click to reset" style="position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:4" style-hover="background:linear-gradient(90deg,transparent 3px,var(--accent) 3px 5px,transparent 5px)"></div>
+  <div style="font:600 13.5px 'Red Hat Mono',monospace;padding:0 0 14px {{ navHeadPad }};display:flex;align-items:center;gap:8px;justify-content:{{ navJustify }}">
+   <sc-if value="{{ navOpen }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="box-sizing:content-box;width:16px;height:16px;flex-shrink:0;border-radius:3px;border:1px solid var(--ink);overflow:hidden;display:grid;grid-template-rows:repeat(4,4px);background:var(--surface)"><span style="display:block;height:4px;background:var(--accent)"></span><span style="display:block;height:4px;background:conic-gradient(var(--accent) 25%, transparent 0 50%, var(--accent) 0 75%, transparent 0) 0 0/4px 4px"></span><span style="display:block;height:4px;background:conic-gradient(var(--accent) 25%, transparent 0) 0 0/4px 4px"></span><span style="display:block;height:4px;background:conic-gradient(at 2px 2px, transparent 75%, var(--accent) 0) 0 0/8px 4px"></span></span><span style="flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.1;overflow:hidden"><span style="white-space:nowrap;font-family:'Red Hat Text';font-weight:700;letter-spacing:-.01em">Inbox Sift</span><span style="white-space:nowrap;font:500 10px 'Red Hat Mono';color:var(--muted)">for GitHub</span></span></sc-if>
+   <button onClick="{{ toggleNav }}" title="{{ navToggleTitle }}" aria-label="{{ navToggleTitle }}" style="width:26px;height:26px;flex-shrink:0;border:1px solid transparent;border-radius:4px;background:transparent;display:grid;place-items:center;cursor:pointer" style-hover="background:var(--fill);border-color:var(--fill-edge)"><span style="width:15px;height:15px;background:var(--muted);mask:{{ navToggleIcon }}"></span></button>
+  </div>
+  <sc-for list="{{ nav1 }}" as="n" hint-placeholder-count="3">
+  <button onClick="{{ n.go }}" title="{{ n.label }}" style="display:flex;align-items:center;justify-content:{{ navJustify }};gap:8px;padding:6px 8px;background-size:2px 2px;border-radius:3px;border:1px solid {{ n.border }};background-color:{{ n.bg }};background-image:{{ n.tex }};color:{{ n.fg }};font:{{ n.weight }} 12.5px 'Red Hat Text';cursor:pointer;text-align:left" style-hover="background-color:var(--accent-wash)">
+   <span style="width:15px;height:15px;flex-shrink:0;background:currentColor;mask:{{ n.icon }}"></span><sc-if value="{{ navOpen }}" hint-placeholder-val="{{ true }}"><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.label }}</span><span style="font:500 11.5px 'Red Hat Mono';color:{{ n.countFg }}">{{ n.count }}</span></sc-if>
+  </button>
+  </sc-for>
+  <div style="height:1px;background:var(--line);margin:8px 0"></div>
+  <sc-for list="{{ nav2 }}" as="n" hint-placeholder-count="3">
+  <button onClick="{{ n.go }}" title="{{ n.label }}" style="display:flex;align-items:center;justify-content:{{ navJustify }};gap:8px;padding:6px 8px;background-size:2px 2px;border-radius:3px;border:1px solid {{ n.border }};background-color:{{ n.bg }};background-image:{{ n.tex }};color:{{ n.fg }};font:{{ n.weight }} 12.5px 'Red Hat Text';cursor:pointer;text-align:left" style-hover="background-color:var(--accent-wash)">
+   <span style="width:15px;height:15px;flex-shrink:0;background:currentColor;mask:{{ n.icon }}"></span><sc-if value="{{ navOpen }}" hint-placeholder-val="{{ true }}"><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.label }}</span></sc-if>
+  </button>
+  </sc-for>
+  <div style="margin-top:auto;position:relative;padding:0 2px">
+   <button onClick="{{ toggleHostMenu }}" aria-haspopup="true" title="{{ hostLabel }}" style="width:100%;height:30px;display:flex;align-items:center;justify-content:{{ navJustify }};gap:8px;padding:0 10px;border:1px solid var(--fill-edge);background:var(--fill);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none">
+    <span style="width:14px;height:14px;flex-shrink:0;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/server.svg) center/contain no-repeat"></span><sc-if value="{{ navOpen }}" hint-placeholder-val="{{ true }}"><span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis">{{ hostLabel }}</span><span style="width:12px;height:12px;flex-shrink:0;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/selector.svg) center/contain no-repeat"></span></sc-if>
+   </button>
+   <sc-if value="{{ hostMenu }}" hint-placeholder-val="{{ false }}">
+   <div style="position:absolute;left:2px;bottom:38px;width:250px;z-index:6;background:var(--surface);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);overflow:hidden">
+    <div style="background:var(--fill);font:600 10px 'Red Hat Mono';letter-spacing:.04em;padding:7px 12px;border-bottom:1px solid var(--line);color:var(--ink2)">SHOW HOSTS</div>
+    <sc-for list="{{ hostRows }}" as="h" hint-placeholder-count="2">
+    <label style="display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line-soft);cursor:pointer" style-hover="background:var(--accent-wash)">
+     <input type="checkbox" checked="{{ h.on }}" onChange="{{ h.toggle }}" style="width:14px;height:14px;accent-color:var(--accent);margin:0">
+     <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font:600 12px 'Red Hat Mono'">{{ h.name }}</span><span style="font:10.5px 'Red Hat Mono';color:{{ h.statusFg }}">{{ h.statusText }}</span></span>
+     <span style="font:11.5px 'Red Hat Mono';color:var(--muted)">{{ h.count }}</span>
+    </label>
+    </sc-for>
+    <div style="padding:8px 12px;font-size:11.5px;color:var(--muted)">Hosts come from your <span style="font-family:'Red Hat Mono'">gh auth</span> logins.</div>
+   </div>
+   </sc-if>
+  </div>
+ </nav>
+
+ <main style="position:relative;display:flex;flex-direction:column;min-width:0;min-height:0">
+  <sc-if value="{{ showDrawer }}" hint-placeholder-val="{{ false }}"><div onMouseDown="{{ startDrawerDrag }}" onDoubleClick="{{ resetDrawer }}" title="Drag to resize · double-click to reset" style="position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:4" style-hover="background:linear-gradient(90deg,transparent 3px,var(--accent) 3px 5px,transparent 5px)"></div></sc-if>
+  <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+  <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)">
+   <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:240px">
+     <div style="display:flex;align-items:baseline;gap:10px"><h1 style="margin:0;font-size:19px;font-weight:700">{{ viewTitle }}</h1><span style="font:600 13px 'Red Hat Mono';color:var(--muted)">{{ listCount }}</span></div>
+     <span style="font-size:12.5px;color:var(--muted);text-wrap:pretty">{{ viewSub }}</span>
+    </div>
+    <sc-if value="{{ isFiltered }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+     <div style="position:relative">
+      <button onClick="{{ toggleGroupMenu }}" aria-haspopup="true" style="width:178px;height:30px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border:1px solid var(--fill-edge);background:var(--surface);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:14px;height:14px;flex-shrink:0;background:currentColor;mask:{{ groupIcon }}"></span><span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis">{{ groupLabel }}</span><span style="width:12px;height:12px;flex-shrink:0;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/chevron-down.svg) center/contain no-repeat"></span></button>
+      <sc-if value="{{ groupMenu }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:0;top:36px;width:178px;z-index:6;background:var(--surface);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);overflow:hidden;padding:4px 0">
+       <sc-for list="{{ groupOpts }}" as="o" hint-placeholder-count="3">
+       <button onClick="{{ o.pick }}" style="width:100%;display:flex;align-items:center;gap:8px;padding:7px 12px;border:0;background:{{ o.bg }};color:var(--ink);font:{{ o.weight }} 12.5px 'Red Hat Text';cursor:pointer;text-align:left" style-hover="background:var(--accent-wash)"><span style="width:14px;height:14px;background:currentColor;mask:{{ o.icon }}"></span><span style="flex:1">{{ o.label }}</span><span style="width:13px;height:13px;background:var(--accent-text);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/check.svg) center/contain no-repeat;opacity:{{ o.checkOp }}"></span></button>
+       </sc-for>
+      </div>
+      </sc-if>
+     </div>
+     <button onClick="{{ startBulk }}" disabled="{{ bulkDisabled }}" style="height:30px;padding:0 13px;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--accent-edge);background:var(--accent);color:#FFFFFF;box-shadow:2px 2px 0 var(--accent-shadow);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:14px;height:14px;background:#FFFFFF;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/checks.svg) center/contain no-repeat"></span>Mark all {{ listCount }} Done…</button>
+    </div>
+    </sc-if>
+   </div>
+   <div style="height:30px;border:1px solid var(--line-strong);border-radius:3px;background:var(--surface);display:flex;align-items:center;gap:8px;padding:0 9px" style-focus-within="border-color:var(--accent)">
+    <span style="width:14px;height:14px;flex-shrink:0;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/search.svg) center/contain no-repeat"></span>
+    <input ref="{{ searchRef }}" value="{{ q }}" onChange="{{ onQ }}" placeholder="{{ searchPh }}" style="flex:1;border:0;background:transparent;font:12.5px 'Red Hat Mono';color:var(--ink);min-width:0">
+    <span title="Press / to search" aria-hidden="true" style="width:18px;height:18px;flex-shrink:0;display:grid;place-items:center;border:1px solid var(--line-strong);border-radius:3px;box-shadow:1px 1px 0 var(--line-strong);background:var(--surface)"><span style="width:11px;height:11px;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/slash.svg) center/contain no-repeat"></span></span>
+   </div>
+  </div>
+  <sc-if value="{{ pickMode }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;align-items:center;gap:10px;height:42px;padding:0 16px;background:var(--ink);color:var(--surface);flex-wrap:wrap">
+   <strong style="font-size:13px">{{ pickCount }} selected</strong>
+   <button onClick="{{ pickAll }}" style="border:0;background:transparent;color:inherit;font:600 12px 'Red Hat Text';text-decoration:underline;cursor:pointer;opacity:.85">Select all {{ listCount }}</button>
+   <div style="margin-left:auto;display:flex;gap:8px">
+    <button onClick="{{ donePicked }}" style="height:28px;padding:0 11px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent-edge);background:var(--accent);color:#FFFFFF;box-shadow:2px 2px 0 var(--accent-shadow);border-radius:4px;font:600 12px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:13px;height:13px;background:#FFFFFF;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/checks.svg) center/contain no-repeat"></span>Mark {{ pickCount }} done</button>
+    <button onClick="{{ readPicked }}" style="height:28px;padding:0 11px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--fill-edge);background:var(--fill);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:13px;height:13px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/mail-opened.svg) center/contain no-repeat"></span>Mark read</button>
+    <button onClick="{{ clearPicked }}" title="Clear selection (Esc)" aria-label="Clear selection" style="width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--fill-edge);background:var(--surface);border-radius:4px;cursor:pointer"><span style="width:14px;height:14px;background:var(--ink);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/x.svg) center/contain no-repeat"></span></button>
+   </div>
+  </div>
+  </sc-if>
+  <div style="flex:1;overflow:auto;min-height:0;background:var(--surface)">
+   <sc-for list="{{ groups }}" as="g" hint-placeholder-count="1">
+   <sc-if value="{{ g.showHead }}" hint-placeholder-val="{{ false }}">
+   <div style="position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;height:28px;padding:0 16px;background:var(--fill);border-bottom:1px solid var(--line);font:600 10.5px 'Red Hat Mono';letter-spacing:.03em;color:var(--ink2)"><span style="width:13px;height:13px;background:var(--muted);mask:{{ g.icon }}"></span><span>{{ g.name }}</span><span style="color:var(--muted)">{{ g.count }}</span></div>
+   </sc-if>
+   <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="12">
+   <div onClick="{{ r.select }}" onMouseEnter="{{ r.hoverOn }}" onMouseLeave="{{ r.hoverOff }}" style="display:grid;grid-template-columns:{{ c1 }} 16px {{ avSize }} minmax(72px,150px) minmax(120px,1fr) 104px 36px;align-items:center;gap:10px;height:{{ rowH }};padding:0 16px;border-bottom:1px solid var(--line-soft);cursor:pointer;background:{{ r.bg }};box-shadow:{{ r.bar }}" style-hover="background:var(--accent-wash)">
+    <sc-if value="{{ pickMode }}" hint-placeholder-val="{{ false }}"><input type="checkbox" checked="{{ r.picked }}" onClick="{{ r.pickClick }}" onChange="{{ r.noop }}" aria-label="Select" style="width:14px;height:14px;accent-color:var(--accent);margin:0;cursor:pointer"></sc-if>
+    <sc-if value="{{ notPickMode }}" hint-placeholder-val="{{ true }}"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-text);opacity:{{ r.dotOp }}"></span></sc-if>
+    <span style="width:15px;height:15px;background:var(--muted);mask:{{ r.kindMask }}"></span>
+    <span style="width:{{ avSize }};height:{{ avSize }};border-radius:{{ r.avRadius }};background:{{ r.avBg }};border:1px solid var(--line-strong);display:grid;place-items:center;font:600 8.5px 'Red Hat Mono';color:#3A3833">{{ r.ini }}</span>
+    <span style="font:11px 'Red Hat Mono';color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ r.repo }}</span>
+    <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+     <span style="font-size:12.5px;font-weight:{{ r.weight }};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ r.title }}</span>
+     <sc-if value="{{ balanced }}" hint-placeholder-val="{{ false }}"><span style="font:11px 'Red Hat Mono';color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ r.num }} · {{ r.actor }} ({{ r.role }}) · {{ r.host }}</span></sc-if>
+    </div>
+    <sc-if value="{{ r.notHover }}" hint-placeholder-val="{{ true }}">
+    <span title="{{ r.why }}" style="display:inline-flex;align-items:center;gap:4px;font:600 9.5px 'Red Hat Mono';background:{{ r.tagBg }};color:{{ r.tagFg }};padding:2px 6px 2px 4px;border-radius:2px;white-space:nowrap;justify-self:end"><span style="width:11px;height:11px;flex-shrink:0;background:currentColor;mask:{{ r.tagIcon }}"></span>{{ r.reasonTag }}</span>
+    <span style="font:11px 'Red Hat Mono';color:var(--muted);text-align:right">{{ r.ageText }}</span>
+    </sc-if>
+    <sc-if value="{{ r.hover }}" hint-placeholder-val="{{ false }}"><div style="grid-column:6 / span 2;justify-self:end;display:flex;gap:4px"><button onClick="{{ r.qDone }}" title="Mark done (e)" aria-label="Mark done (e)" style="width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--accent-edge);background:var(--accent);box-shadow:1px 1px 0 var(--accent-shadow);border-radius:4px;cursor:pointer;padding:0" style-active="transform:translate(1px,1px);box-shadow:none"><span style="width:13px;height:13px;background:#FFFFFF;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/check.svg) center/contain no-repeat"></span></button><button onClick="{{ r.qRead }}" title="Toggle read (r)" aria-label="Toggle read (r)" style="width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--fill-edge);background:var(--surface);box-shadow:1px 1px 0 var(--fill-edge);border-radius:4px;cursor:pointer;padding:0" style-active="transform:translate(1px,1px);box-shadow:none"><span style="width:13px;height:13px;background:var(--ink);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/mail-opened.svg) center/contain no-repeat"></span></button><button onClick="{{ r.qOpen }}" title="Open on GitHub" aria-label="Open on GitHub" style="width:24px;height:24px;display:grid;place-items:center;border:1px solid var(--fill-edge);background:var(--surface);box-shadow:1px 1px 0 var(--fill-edge);border-radius:4px;cursor:pointer;padding:0" style-active="transform:translate(1px,1px);box-shadow:none"><span style="width:13px;height:13px;background:var(--ink);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/external-link.svg) center/contain no-repeat"></span></button></div></sc-if>
+   </div>
+   </sc-for>
+   </sc-for>
+   <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+   <div style="padding:56px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+    <span style="width:28px;height:28px;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/inbox.svg) center/contain no-repeat"></span>
+    <strong style="font-size:15px">{{ emptyTitle }}</strong>
+    <span style="font-size:12.5px;color:var(--muted);max-width:360px">{{ emptySub }}</span>
+   </div>
+   </sc-if>
+  </div>
+  <sc-if value="{{ bulkTray }}" hint-placeholder-val="{{ false }}">
+  <div style="border-top:1px solid var(--ink);background:var(--surface);padding:10px 16px;display:flex;flex-direction:column;gap:8px">
+   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="display:inline-flex;align-items:center;gap:4px;font:600 9.5px 'Red Hat Mono';background:{{ trayTagBg }};color:{{ trayTagFg }};padding:2px 6px 2px 4px;border-radius:2px;white-space:nowrap"><span style="width:11px;height:11px;background:currentColor;mask:{{ trayIcon }}"></span>{{ trayTag }}</span>
+    <strong style="font-size:13px">{{ trayTitle }}</strong>
+    <sc-if value="{{ bulkHasFail }}" hint-placeholder-val="{{ false }}"><span style="font:11.5px 'Red Hat Mono';color:var(--fail-fg)">{{ bulkFailN }} failed (502 from github.com), still unchanged</span></sc-if>
+    <div style="margin-left:auto;display:flex;gap:8px">
+     <sc-if value="{{ bulkCanRetry }}" hint-placeholder-val="{{ false }}"><button onClick="{{ retryFailed }}" style="height:26px;padding:0 10px;border:1px solid var(--accent-edge);background:var(--accent);color:#FFFFFF;box-shadow:2px 2px 0 var(--accent-shadow);border-radius:4px;font:600 12px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none">Retry {{ bulkFailN }}</button></sc-if>
+     <button onClick="{{ trayAction }}" style="height:26px;padding:0 10px;border:1px solid var(--fill-edge);background:var(--fill);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none">{{ trayActionLabel }}</button>
+    </div>
+   </div>
+   <div style="height:8px;border:1px solid var(--ink);border-radius:2px;overflow:hidden;display:flex;background:var(--surface)"><div style="width:{{ bulkPct }};background:var(--seg-done)"></div><div style="width:{{ bulkFailPct }};background:var(--fail-strong)"></div></div>
+  </div>
+  </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ isRepos }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)">
+   <div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:baseline;gap:10px"><h1 style="margin:0;font-size:19px;font-weight:700">Repositories</h1><span style="font:600 13px 'Red Hat Mono';color:var(--muted)">{{ repoShown }} of {{ repoTotal }} in Inbox</span></div><span style="font-size:12.5px;color:var(--muted)">Uncheck a repository to send its notifications to Filtered Out. Your GitHub subscriptions are not changed.</span></div>
+   <div style="height:30px;border:1px solid var(--line-strong);border-radius:3px;background:var(--surface);display:flex;align-items:center;gap:8px;padding:0 9px"><span style="width:14px;height:14px;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/search.svg) center/contain no-repeat"></span><input value="{{ repoQ }}" onChange="{{ onRepoQ }}" placeholder="Filter repositories" style="flex:1;border:0;background:transparent;font:12.5px 'Red Hat Mono';color:var(--ink);min-width:0"></div>
+  </div>
+  <div style="flex:1;overflow:auto;background:var(--surface)">
+   <div style="display:grid;grid-template-columns:28px minmax(0,1fr) 110px 90px;gap:10px;padding:7px 18px;font:600 10px 'Red Hat Mono';letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line)"><span></span><span>REPOSITORY</span><span>HOST</span><span style="text-align:right">NOTIFICATIONS</span></div>
+   <sc-for list="{{ repoRows }}" as="r" hint-placeholder-count="10">
+   <label style="display:grid;grid-template-columns:28px minmax(0,1fr) 110px 90px;gap:10px;align-items:center;height:36px;padding:0 18px;border-bottom:1px solid var(--line-soft);cursor:pointer;color:{{ r.fg }}" style-hover="background:var(--accent-wash)">
+    <input type="checkbox" checked="{{ r.shown }}" onChange="{{ r.toggle }}" style="width:14px;height:14px;accent-color:var(--accent);margin:0">
+    <span style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:{{ r.weight }};min-width:0"><span style="width:14px;height:14px;flex-shrink:0;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/book.svg) center/contain no-repeat"></span><span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-decoration:{{ r.deco }}">{{ r.name }}</span></span>
+    <span style="font:11px 'Red Hat Mono';color:var(--muted)">{{ r.host }}</span>
+    <span style="font:12px 'Red Hat Mono';text-align:right">{{ r.count }}</span>
+   </label>
+   </sc-for>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isPeople }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)">
+   <div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:baseline;gap:10px"><h1 style="margin:0;font-size:19px;font-weight:700">People</h1><span style="font:600 13px 'Red Hat Mono';color:var(--muted)">{{ peopleShown }} of {{ peopleTotal }} in Inbox</span></div><span style="font-size:12.5px;color:var(--muted)">Roles show what each person did on your threads, taken from GitHub data. When the actor is unknown we say so and don't guess.</span></div>
+   <div style="height:30px;border:1px solid var(--line-strong);border-radius:3px;background:var(--surface);display:flex;align-items:center;gap:8px;padding:0 9px"><span style="width:14px;height:14px;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/search.svg) center/contain no-repeat"></span><input value="{{ peopleQ }}" onChange="{{ onPeopleQ }}" placeholder="Filter people and bots" style="flex:1;border:0;background:transparent;font:12.5px 'Red Hat Mono';color:var(--ink);min-width:0"></div>
+  </div>
+  <div style="flex:1;overflow:auto;background:var(--surface)">
+   <sc-for list="{{ peopleRows }}" as="p" hint-placeholder-count="10">
+   <label style="display:grid;grid-template-columns:28px 30px minmax(0,1fr) auto 60px;gap:10px;align-items:center;height:42px;padding:0 18px;border-bottom:1px solid var(--line-soft);cursor:pointer;color:{{ p.fg }}" style-hover="background:var(--accent-wash)">
+    <input type="checkbox" checked="{{ p.shown }}" onChange="{{ p.toggle }}" style="width:14px;height:14px;accent-color:var(--accent);margin:0">
+    <span style="width:28px;height:28px;border-radius:{{ p.radius }};background:{{ p.bg }};border:1px solid var(--line-strong);display:grid;place-items:center;font:600 10px 'Red Hat Mono';color:#3A3833;opacity:{{ p.op }}">{{ p.ini }}</span>
+    <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:12.5px;font-weight:{{ p.weight }};text-decoration:{{ p.deco }}">{{ p.name }}</span><sc-if value="{{ p.isBot }}" hint-placeholder-val="{{ false }}"><span style="font:600 9.5px 'Red Hat Mono';border:1px solid var(--line-strong);color:var(--q-fg);padding:1px 5px;border-radius:2px">BOT</span></sc-if></span>
+    <span style="font:11px 'Red Hat Mono';color:var(--muted);white-space:nowrap">{{ p.roles }}</span>
+    <span style="font:12px 'Red Hat Mono';text-align:right">{{ p.count }}</span>
+   </label>
+   </sc-for>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px;max-width:900px">
+   <h1 style="margin:0;font-size:19px;font-weight:700">Settings</h1>
+   <div style="background:var(--surface);border:1px solid var(--line);border-radius:3px;overflow:hidden">
+    <div style="background:var(--fill);color:var(--ink2);font:600 10px 'Red Hat Mono';letter-spacing:.04em;padding:7px 12px">APPEARANCE</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line-soft)">
+     <span style="display:flex;flex-direction:column;gap:2px;flex:1"><strong style="font-size:13px">Theme</strong><span style="font-size:12.5px;color:var(--muted)">System follows your OS setting.</span></span>
+     <div style="display:flex;border:1px solid var(--fill-edge);border-radius:4px;overflow:hidden;font:600 12px 'Red Hat Text'">
+      <sc-for list="{{ themeOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" style="height:28px;padding:0 11px;display:inline-flex;align-items:center;gap:6px;border:0;border-right:1px solid var(--fill-edge);background:{{ o.bg }};color:{{ o.fg }};font:inherit;cursor:pointer;white-space:nowrap"><span style="width:13px;height:13px;background:currentColor;mask:{{ o.icon }}"></span>{{ o.label }}</button></sc-for>
+     </div>
+    </div>
+    <div style="padding:14px 14px 4px"><strong style="font-size:13px">List density</strong></div>
+    <div style="padding:10px 14px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+     <sc-for list="{{ densOpts }}" as="d" hint-placeholder-count="2">
+     <div onClick="{{ d.pick }}" role="radio" aria-checked="{{ d.on }}" style="border:1px solid {{ d.border }};box-shadow:{{ d.shadow }};border-radius:3px;padding:12px;display:flex;flex-direction:column;gap:10px;cursor:pointer;background:var(--surface)">
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:14px;height:14px;border-radius:50%;border:1px solid var(--ink);background:{{ d.dot }};box-shadow:{{ d.ring }}"></span><strong style="font-size:13.5px">{{ d.name }}</strong></div>
+      <div style="border:1px solid var(--line);border-radius:3px;overflow:hidden">
+       <sc-for list="{{ d.sample }}" as="r" hint-placeholder-count="4">
+       <div style="height:{{ d.rowH }};display:flex;align-items:center;gap:7px;padding:0 8px;border-bottom:1px solid var(--line-soft);background:var(--surface);min-width:0">
+        <span style="width:{{ d.av }};height:{{ d.av }};border-radius:50%;background:{{ r.avBg }};border:1px solid var(--line-strong);flex-shrink:0"></span>
+        <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1">
+         <div style="display:flex;gap:7px;min-width:0"><span style="font:10px 'Red Hat Mono';color:var(--muted);white-space:nowrap">{{ r.repo }}</span><span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.title }}</span></div>
+         <sc-if value="{{ d.twoLine }}" hint-placeholder-val="{{ false }}"><span style="font:10px 'Red Hat Mono';color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.actor }} · {{ r.host }}</span></sc-if>
+        </div>
+        <span style="font:10px 'Red Hat Mono';color:var(--muted)">{{ r.ageText }}</span>
+       </div>
+       </sc-for>
+      </div>
+      <div style="font-size:12.5px;line-height:1.45;color:var(--ink2)">{{ d.desc }}</div>
+     </div>
+     </sc-for>
+    </div>
+   </div>
+   <div style="background:var(--surface);border:1px solid var(--line);border-radius:3px;overflow:hidden">
+    <div style="background:var(--fill);color:var(--ink2);font:600 10px 'Red Hat Mono';letter-spacing:.04em;padding:7px 12px">BEHAVIOR</div>
+    <label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer">
+     <input type="checkbox" checked="{{ readOnOpen }}" onChange="{{ toggleReadOnOpen }}" style="width:14px;height:14px;accent-color:var(--accent);margin:2px 0 0">
+     <span style="display:flex;flex-direction:column;gap:2px"><strong style="font-size:13px">Mark as read on GitHub when I open a notification</strong><span style="font-size:12.5px;color:var(--muted)">Off by default. When it's off, opening a notification only changes it here.</span></span>
+    </label>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px">
+     <span style="display:flex;flex-direction:column;gap:2px;flex:1"><strong style="font-size:13px">Refresh</strong><span style="font-size:12.5px;color:var(--muted)">Adaptive mode follows GitHub's polling hint, which is currently 60s.</span></span>
+     <div style="display:flex;border:1px solid var(--fill-edge);border-radius:4px;overflow:hidden;font:600 12px 'Red Hat Text'">
+      <sc-for list="{{ pollOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" style="height:28px;padding:0 11px;border:0;border-right:1px solid var(--fill-edge);background:{{ o.bg }};color:{{ o.fg }};font:inherit;cursor:pointer;white-space:nowrap">{{ o.label }}</button></sc-for>
+     </div>
+    </div>
+   </div>
+  </div>
+  </sc-if>
+ </main>
+
+ <sc-if value="{{ showDrawer }}" hint-placeholder-val="{{ true }}">
+ <aside style="border-left:1px solid var(--ink);background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0;min-height:0;overflow:auto">
+  <div style="display:flex;flex-direction:column;gap:14px;flex-shrink:0;min-height:100%">
+  <div style="display:flex;align-items:center;gap:8px;font:600 10px 'Red Hat Mono';letter-spacing:.04em;color:var(--muted)"><span style="width:15px;height:15px;background:var(--muted);mask:{{ s.kindMask }}"></span><span style="flex:1;text-transform:uppercase">{{ s.kindLabel }} · {{ s.num }}</span><button onClick="{{ closeDrawer }}" aria-label="Close" title="Close (Esc)" style="width:26px;height:26px;border:1px solid transparent;border-radius:4px;background:transparent;display:grid;place-items:center;cursor:pointer" style-hover="background:var(--fill);border-color:var(--fill-edge)"><span style="width:15px;height:15px;background:var(--ink);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/x.svg) center/contain no-repeat"></span></button></div>
+  <div style="font-size:17px;font-weight:700;line-height:1.3;text-wrap:pretty">{{ s.title }}</div>
+  <div style="font:11px 'Red Hat Mono';color:var(--muted)">{{ s.host }} / {{ s.repo }} · updated {{ s.ageText }} ago</div>
+  <div style="display:flex;gap:8px;align-items:center;position:relative">
+   <button onClick="{{ doneSel }}" title="Mark done on GitHub (e)" style="height:30px;padding:0 12px;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--accent-edge);background:var(--accent);color:#FFFFFF;box-shadow:2px 2px 0 var(--accent-shadow);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap;flex-shrink:0" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:14px;height:14px;background:#FFFFFF;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/check.svg) center/contain no-repeat"></span>Done</button>
+   <button title="Open on GitHub (o)" aria-label="Open on GitHub" style="height:30px;padding:0 {{ openPad }};display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fill-edge);background:var(--fill);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap;flex-shrink:0" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:14px;height:14px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/external-link.svg) center/contain no-repeat"></span><sc-if value="{{ openLabel }}" hint-placeholder-val="{{ true }}">{{ openLabel }}</sc-if></button>
+   <div style="position:relative;flex-shrink:0">
+   <button onClick="{{ toggleFilt }}" aria-haspopup="true" title="Filter out…" aria-label="Filter out" style="height:30px;padding:0 {{ filtPad }};display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fill-edge);background:var(--surface);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:14px;height:14px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/filter-off.svg) center/contain no-repeat"></span><sc-if value="{{ filtLabel }}" hint-placeholder-val="{{ true }}">{{ filtLabel }}</sc-if></button>
+   <sc-if value="{{ filtMenu }}" hint-placeholder-val="{{ false }}">
+   <div style="position:absolute;right:-44px;top:40px;width:240px;z-index:6;background:var(--surface);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);padding:4px 0">
+    <span style="position:absolute;right:{{ filtCaretR }};top:-6px;width:10px;height:10px;background:var(--surface);border-left:1px solid var(--ink);border-top:1px solid var(--ink);transform:rotate(45deg)"></span>
+    <div style="padding:6px 12px 4px;font:600 10px 'Red Hat Mono';letter-spacing:.04em;color:var(--muted)">HIDE FROM INBOX · NOT CHANGED ON GITHUB</div>
+    <sc-for list="{{ filtItems }}" as="m" hint-placeholder-count="2">
+    <button onClick="{{ m.act }}" style="width:100%;display:flex;align-items:center;gap:8px;padding:7px 12px;border:0;background:transparent;color:var(--ink);font:12.5px 'Red Hat Text';cursor:pointer;text-align:left" style-hover="background:var(--accent-wash)"><span style="width:14px;height:14px;flex-shrink:0;background:currentColor;mask:{{ m.icon }}"></span><span style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ m.label }}</span></button>
+    </sc-for>
+   </div>
+   </sc-if>
+   </div>
+   <div style="position:relative;flex-shrink:0">
+   <button onClick="{{ toggleMore }}" aria-haspopup="true" title="More actions" aria-label="More actions" style="width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--fill-edge);background:var(--surface);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;cursor:pointer;flex-shrink:0" style-active="transform:translate(2px,2px);box-shadow:none"><span style="width:15px;height:15px;background:var(--ink);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/dots.svg) center/contain no-repeat"></span></button>
+   <sc-if value="{{ moreMenu }}" hint-placeholder-val="{{ false }}">
+   <div style="position:absolute;right:-8px;top:40px;width:200px;z-index:6;background:var(--surface);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);padding:4px 0">
+    <span style="position:absolute;right:18px;top:-6px;width:10px;height:10px;background:var(--surface);border-left:1px solid var(--ink);border-top:1px solid var(--ink);transform:rotate(45deg)"></span>
+    <sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="4">
+    <sc-if value="{{ m.sep }}" hint-placeholder-val="{{ false }}"><div style="height:1px;background:var(--line);margin:4px 0"></div></sc-if>
+    <button onClick="{{ m.act }}" style="width:100%;display:flex;align-items:center;gap:8px;padding:7px 12px;border:0;background:transparent;color:var(--ink);font:12.5px 'Red Hat Text';cursor:pointer;text-align:left" style-hover="background:var(--accent-wash)"><span style="width:14px;height:14px;flex-shrink:0;background:currentColor;mask:{{ m.icon }}"></span><span style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ m.label }}</span><span style="font:11px 'Red Hat Mono';color:var(--muted)">{{ m.key }}</span></button>
+    </sc-for>
+   </div>
+   </sc-if>
+   </div>
+  </div>
+  <div style="display:flex;gap:4px;flex-wrap:wrap;position:relative"><span onMouseEnter="{{ tipOn }}" onMouseLeave="{{ tipOff }}" aria-describedby="why-tip" style="cursor:help;display:inline-flex;align-items:center;gap:4px;font:600 9.5px 'Red Hat Mono';background:{{ s.tagBg }};color:{{ s.tagFg }};padding:2px 6px 2px 4px;border-radius:2px"><span style="width:11px;height:11px;background:currentColor;mask:{{ s.tagIcon }}"></span>{{ s.reasonTag }}</span><span style="display:inline-flex;align-items:center;gap:4px;font:600 9.5px 'Red Hat Mono';background:{{ s.readBg }};color:{{ s.readFg }};padding:2px 6px 2px 4px;border-radius:2px"><span style="width:11px;height:11px;background:currentColor;mask:{{ s.readIcon }}"></span>{{ s.readLabel }}</span><sc-if value="{{ tip }}" hint-placeholder-val="{{ false }}"><div id="why-tip" role="tooltip" style="position:absolute;left:0;top:24px;z-index:3;max-width:280px;background:var(--ink);color:var(--surface);font:12px/1.4 'Red Hat Text';padding:6px 8px;border-radius:3px">{{ s.why }}</div></sc-if></div>
+  
+  <sc-if value="{{ s.hiddenNote }}" hint-placeholder-val="{{ false }}">
+  <div style="border:1px solid var(--q-edge);border-radius:3px;overflow:hidden"><div style="background:var(--fill);color:var(--q-pfg);font:600 10px 'Red Hat Mono';padding:5px 8px;display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/eye-off.svg) center/contain no-repeat"></span>FILTERED OUT HERE ONLY</div><div style="background:var(--q-body);padding:8px;font-size:12.5px;color:var(--q-pfg)">{{ s.hiddenNote }}</div></div>
+  </sc-if>
+  <sc-if value="{{ s.isPr }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;gap:7px">
+   <div style="font:600 10px 'Red Hat Mono';color:var(--muted);letter-spacing:.04em">STATUS</div>
+   <div style="display:grid;grid-template-columns:62px 1fr;gap:6px 10px;font-size:12px;align-items:center">
+    <span style="font:600 10px 'Red Hat Mono';color:var(--muted)">DIFF</span><span style="font:12px 'Red Hat Mono'"><span style="color:var(--done-fg)">+{{ s.add }}</span> <span style="color:var(--fail-fg)">−{{ s.del }}</span> · {{ s.files }} files</span>
+    <span style="font:600 10px 'Red Hat Mono';color:var(--muted)">CHECKS</span><span style="display:flex;gap:4px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:4px;font:600 9.5px 'Red Hat Mono';background:var(--done-tag);color:var(--done-fg);padding:2px 6px 2px 4px;border-radius:2px"><span style="width:11px;height:11px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/circle-check.svg) center/contain no-repeat"></span>{{ s.pass }} PASSED</span><sc-if value="{{ s.failing }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:4px;font:600 9.5px 'Red Hat Mono';background:var(--fail-tag);color:var(--fail-fg);padding:2px 6px 2px 4px;border-radius:2px;text-transform:uppercase"><span style="width:11px;height:11px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/circle-x.svg) center/contain no-repeat"></span>1 {{ s.failCheck }}</span></sc-if></span>
+    <span style="font:600 10px 'Red Hat Mono';color:var(--muted)">REVIEWS</span><span>{{ s.reviews }}</span>
+    <span style="font:600 10px 'Red Hat Mono';color:var(--muted)">MERGE</span><span style="color:{{ s.mergeFg }}">{{ s.merge }}</span>
+   </div>
+  </div>
+  </sc-if>
+  <div style="display:flex;flex-direction:column;gap:8px">
+   <div style="font:600 10px 'Red Hat Mono';color:var(--muted);letter-spacing:.04em">{{ s.actHead }}</div>
+   <div style="display:flex;flex-direction:column;gap:10px;border-left:1px solid var(--line);margin-left:10px;padding-left:14px">
+    <sc-for list="{{ s.events }}" as="ev" hint-placeholder-count="3">
+    <div style="display:flex;gap:8px;font-size:12px;margin-left:-26px">
+     <span style="width:22px;height:22px;border-radius:{{ ev.radius }};background:{{ ev.bg }};border:1px solid var(--line-strong);flex-shrink:0;display:grid;place-items:center;font:600 8.5px 'Red Hat Mono';color:#3A3833">{{ ev.ini }}</span>
+     <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span><strong>{{ ev.who }}</strong> {{ ev.what }} <span style="font:11px 'Red Hat Mono';color:var(--muted)">{{ ev.when }}</span></span><sc-if value="{{ ev.snippet }}" hint-placeholder-val="{{ false }}"><span style="color:var(--ink2);text-wrap:pretty">{{ ev.snippet }}</span></sc-if></div>
+    </div>
+    </sc-for>
+   </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+   <div style="font:600 10px 'Red Hat Mono';color:var(--muted);letter-spacing:.04em">PARTICIPANTS</div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <sc-for list="{{ people }}" as="p" hint-placeholder-count="3">
+    <div title="{{ p.role }}" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 8px 3px 3px;border:1px solid var(--line);border-radius:999px"><span style="width:22px;height:22px;border-radius:{{ p.radius }};background:{{ p.bg }};color:{{ p.fg }};border:1px solid var(--line-strong);display:grid;place-items:center;font:600 8.5px 'Red Hat Mono';flex-shrink:0">{{ p.ini }}</span><span style="font-weight:600">{{ p.name }}</span><span style="color:var(--muted);font-size:11.5px">{{ p.role }}</span></div>
+    </sc-for>
+   </div>
+  </div>
+  
+  </div>
+ </aside>
+ </sc-if>
+
+ <div style="grid-column:1/-1;position:relative;border-top:1px solid var(--line);background:var(--fill);display:flex;align-items:center;gap:8px;padding:0 10px;font:10.5px 'Red Hat Mono';color:var(--muted);white-space:nowrap">
+  <sc-for list="{{ hostStatus }}" as="h" hint-placeholder-count="2">
+  <button onClick="{{ h.open }}" style="display:flex;align-items:center;gap:5px;height:20px;padding:0 6px;border:0;border-radius:2px;background:{{ h.bg }};color:{{ h.fg }};font:{{ h.weight }} 10.5px 'Red Hat Mono';cursor:pointer;white-space:nowrap" style-hover="filter:brightness(.96)"><span style="width:12px;height:12px;background:currentColor;mask:{{ h.icon }}"></span>{{ h.text }}</button>
+  </sc-for>
+  <span style="overflow:hidden;text-overflow:ellipsis;padding-left:6px">{{ pollText }}</span>
+  <button onClick="{{ toggleHelp }}" style="margin-left:auto;display:flex;align-items:center;gap:6px;border:0;background:transparent;font:inherit;color:inherit;cursor:pointer;min-width:0;flex-shrink:1;overflow:hidden"><span style="width:12px;height:12px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/keyboard.svg) center/contain no-repeat;flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;gap:4px;white-space:nowrap">? shortcuts · j/k move · enter open · esc close · e done ·<span aria-label="slash" style="width:14px;height:14px;flex-shrink:0;display:inline-grid;place-items:center;border:1px solid var(--line-strong);border-radius:3px;background:var(--surface)"><span style="width:9px;height:9px;background:currentColor;mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/slash.svg) center/contain no-repeat"></span></span>search</span></button>
+  <sc-if value="{{ hostPop }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:10px;bottom:34px;width:320px;z-index:6;background:var(--surface);color:var(--ink);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);overflow:hidden;font-family:'Red Hat Text';white-space:normal">
+   <div style="background:{{ hp.barBg }};color:{{ hp.barFg }};font:600 10px 'Red Hat Mono';letter-spacing:.04em;padding:7px 12px;border-bottom:1px solid var(--line)">{{ hp.bar }}</div>
+   <div style="padding:12px;display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+    <span style="text-wrap:pretty">{{ hp.body }}</span>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font:11px 'Red Hat Mono';color:var(--muted)"><span>Last sync</span><span style="color:var(--ink)">{{ hp.last }}</span><span>Rate limit</span><span style="color:var(--ink)">{{ hp.rate }}</span><span>Next check</span><span style="color:var(--ink)">{{ hp.next }}</span></div>
+    <sc-if value="{{ hp.cmd }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:8px;font:11.5px 'Red Hat Mono';background:var(--paper);border:1px solid var(--line);padding:6px 8px;border-radius:2px"><span style="flex:1">{{ hp.cmd }}</span><span style="width:13px;height:13px;background:var(--muted);mask:url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/copy.svg) center/contain no-repeat"></span></div></sc-if>
+    <div style="display:flex;gap:8px"><button onClick="{{ closeMenus }}" style="height:26px;padding:0 10px;border:1px solid var(--fill-edge);background:var(--fill);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none">{{ hp.action }}</button></div>
+   </div>
+  </div>
+  </sc-if>
+ </div>
+</div>
+
+<sc-if value="{{ anyMenu }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenus }}" style="position:fixed;inset:0;z-index:5"></div></sc-if>
+
+<sc-if value="{{ bulkConfirm }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;background:var(--overlay);display:grid;place-items:center;z-index:10">
+ <div role="dialog" aria-modal="true" style="width:400px;background:var(--surface);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);overflow:hidden">
+  <div style="background:var(--fill);color:var(--ink2);font:600 10px 'Red Hat Mono';letter-spacing:.04em;padding:8px 14px;border-bottom:1px solid var(--line)">CONFIRM · MARK DONE ON GITHUB</div>
+  <div style="padding:14px;display:flex;flex-direction:column;gap:12px;font-size:12.5px">
+   <div style="font-size:16px;font-weight:700;text-wrap:pretty">Mark {{ bulk.total }} notifications as Done?</div>
+   <div style="color:var(--ink2);line-height:1.5">That's every notification in Filtered Out, including the ones not loaded on screen: {{ bulk.gh }} on github.com and {{ bulk.ghe }} on ghe.corp. GitHub has no undo for Done.</div>
+   <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button onClick="{{ cancelBulk }}" style="height:30px;padding:0 12px;border:1px solid var(--fill-edge);background:var(--surface);color:var(--ink);box-shadow:2px 2px 0 var(--fill-edge);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none">Cancel</button>
+    <button onClick="{{ confirmBulk }}" style="height:30px;padding:0 12px;border:1px solid var(--accent-edge);background:var(--accent);color:#FFFFFF;box-shadow:2px 2px 0 var(--accent-shadow);border-radius:4px;font:600 12.5px 'Red Hat Text';cursor:pointer;white-space:nowrap" style-active="transform:translate(2px,2px);box-shadow:none">Mark {{ bulk.total }} Done</button>
+   </div>
+  </div>
+ </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ help }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ toggleHelp }}" style="position:fixed;inset:0;background:var(--overlay);display:grid;place-items:center;z-index:10">
+ <div style="width:360px;background:var(--surface);border:1px solid var(--ink);border-radius:3px;box-shadow:2px 2px 0 var(--ink);overflow:hidden">
+  <div style="background:var(--fill);color:var(--ink2);font:600 10px 'Red Hat Mono';letter-spacing:.04em;padding:8px 14px;border-bottom:1px solid var(--line)">KEYBOARD SHORTCUTS</div>
+  <div style="padding:12px 14px;display:grid;grid-template-columns:70px 1fr;gap:8px 12px;font-size:12.5px">
+   <sc-for list="{{ keys }}" as="k" hint-placeholder-count="8"><span style="font:600 11px 'Red Hat Mono';border:1px solid var(--fill-edge);box-shadow:1px 1px 0 var(--fill-edge);border-radius:3px;padding:2px 6px;justify-self:start">{{ k.k }}</span><span>{{ k.d }}</span></sc-for>
+  </div>
+ </div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;hostProblem&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;expired&quot;,&quot;offline&quot;],&quot;default&quot;:&quot;expired&quot;,&quot;tsType&quot;:&quot;'none'|'expired'|'offline'&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
+class Component extends DCLogic {
+  data = this.makeData();
+  searchRef = React.createRef();
+  layout = (() => { try { return JSON.parse(localStorage.getItem('ghn-proto-layout')) || {}; } catch (e) { return {}; } })();
+  state = { navW: this.layout.navW || 212, drawerW: this.layout.drawerW || 360, navCollapsed: !!this.layout.navCollapsed, view: 'inbox', selId: null, open: true, dens: 'compact', groupBy: 'none', groupMenu: false, hostMenu: false, hostPop: null, q: '',
+    hosts: { 'github.com': true, 'ghe.corp': true }, poll: 'adaptive', theme: 'light',
+    exRepo: { 'acme/infra': 1, 'acme/docs': 1, 'corp/data-pipeline': 1 },
+    exPeople: { 'dependabot[bot]': 1, 'renovate[bot]': 1, 'github-actions[bot]': 1 },
+    doneIds: {}, readIds: {}, picked: {}, anchor: null, hoverId: null, filtMenu: false, bulk: null, repoQ: '', peopleQ: '', readOnOpen: false, help: false };
+
+  makeData() {
+    let s = 11;
+    const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const repos = [['github.com', 'acme/sync-service', 10], ['github.com', 'acme/web', 14], ['github.com', 'acme/api', 10], ['github.com', 'acme/infra', 34], ['github.com', 'acme/docs', 10], ['github.com', 'acme/design-system', 6], ['github.com', 'acme/mobile', 6], ['ghe.corp', 'corp/billing', 7], ['ghe.corp', 'corp/identity', 5], ['ghe.corp', 'corp/data-pipeline', 12]];
+    const wsum = repos.reduce((a, r) => a + r[2], 0);
+    const pickRepo = () => { let x = rnd() * wsum; for (const r of repos) { x -= r[2]; if (x <= 0) return r; } return repos[0]; };
+    const humans = ['mlee', 'jpark', 'ssato', 'rkhan', 'tnguyen', 'abrooks', 'cwu', 'lgarcia'];
+    const prT = ['Fix token refresh race in poller', 'Refactor router guards into middleware', 'Add retry budget per host', 'Support X-Poll-Interval header', 'Migrate settings to TOML', 'Virtualize notification list', 'Drop Python 3.10 support', 'Add doctor command checks', 'Handle 304 on conditional fetch', 'Tighten CSP for static assets', 'Cache subject details per thread', 'Split sync scheduler from API process'];
+    const isT = ['Dark mode tokens drift on settings page', 'Broken link in install guide', 'Flaky test: test_rate_limit_backoff', 'Crash when gh is not installed', 'Avatars missing for GHES users', 'Keyboard focus lost after closing drawer', 'Slow first sync with 5k notifications'];
+    const bumpT = ['Bump terraform-aws-eks to 20.8', 'Bump helm to 3.15.2', 'Bump actions/checkout to v5', 'Lock file maintenance', 'Bump golang.org/x/net to 0.31', 'Bump kube-prometheus-stack to 65.1', 'Bump pytest to 8.3.3', 'Update dependency httpx to 0.28'];
+    const out = [];
+    const add = o => out.push({ id: 'n' + out.length, h: out.length * 7 + 3, ...o });
+    add({ host: 'github.com', repo: 'acme/sync-service', kind: 'pr', num: '#482', title: 'Fix token refresh race in poller', reason: 'review_requested', actor: 'mlee', role: 'author', age: 4, unread: true });
+    add({ host: 'github.com', repo: 'acme/infra', kind: 'issue', num: '#312', title: 'Terraform plan drift on staging VPC', reason: 'mention', actor: 'jpark', role: 'commenter', age: 18, unread: true });
+    add({ host: 'ghe.corp', repo: 'corp/billing', kind: 'deploy', num: 'run 88213', title: 'production is waiting for your approval', reason: 'approval_requested', actor: 'github-actions[bot]', role: 'workflow', age: 41, unread: true });
+    let t = 45;
+    for (let i = 0; i < 190; i++) {
+      t += Math.floor(rnd() * rnd() * 220) + 2;
+      const [host, repo] = pickRepo();
+      const botP = repo === 'acme/infra' ? 0.8 : repo === 'corp/data-pipeline' ? 0.6 : 0.25;
+      const unread = i < 25 ? rnd() < 0.8 : rnd() < 0.35;
+      if (rnd() < botP) {
+        const b = rnd() < 0.12 ? 'release-bot' : pick(['dependabot[bot]', 'renovate[bot]', 'github-actions[bot]']);
+        if (b === 'release-bot') add({ host, repo, kind: 'release', num: 'v2.' + Math.floor(rnd() * 20) + '.0', title: 'Release published', reason: 'subscribed', actor: b, role: 'unknown', age: t, unread });
+        else add({ host, repo, kind: 'pr', num: '#' + (100 + Math.floor(rnd() * 900)), title: pick(bumpT), reason: 'subscribed', actor: b, role: 'author', age: t, unread });
+      } else {
+        const pr = rnd() < 0.6, r = rnd();
+        const reason = r < 0.07 ? 'review_requested' : r < 0.12 ? 'mention' : r < 0.3 ? 'team_mention' : r < 0.45 ? 'comment' : r < 0.55 ? 'author' : r < 0.62 ? 'state_change' : 'subscribed';
+        add({ host, repo, kind: pr ? 'pr' : 'issue', num: '#' + (100 + Math.floor(rnd() * 1900)), title: pick(pr ? prT : isT), reason, actor: pick(humans), role: rnd() < 0.5 ? 'author' : 'last commenter', age: t, unread });
+      }
+    }
+    return out;
+  }
+
+  componentDidMount() {
+    this._mq = window.matchMedia('(prefers-color-scheme: dark)');
+    this._mqh = () => this.forceUpdate();
+    this._mq.addEventListener && this._mq.addEventListener('change', this._mqh);
+    this._k = e => {
+      if (e.key === 'Escape') {
+        if (this.state.help) return this.setState({ help: false });
+        if (this.state.groupMenu || this.state.hostMenu || this.state.hostPop || this.state.moreMenu || this.state.filtMenu) return this.closeMenus();
+        if (Object.keys(this.state.picked).length) return this.setState({ picked: {}, anchor: null });
+        if (this.state.bulk && this.state.bulk.phase === 'confirm') return this.setState({ bulk: null });
+        if (e.target && e.target.tagName === 'INPUT') { e.target.blur(); return; }
+        return this.setState({ open: false });
+      }
+      const t = e.target;
+      if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
+      if ((this.state.bulk && this.state.bulk.phase === 'confirm') || e.metaKey || e.ctrlKey || e.altKey) return;
+      const ord = this._order || [], cur = ord.indexOf(this._sel);
+      if (e.key === 'J' || e.key === 'K') { const nx = ord[e.key === 'J' ? Math.min(ord.length - 1, cur + 1) : Math.max(0, cur - 1)]; if (!Object.keys(this.state.picked).length) this.setState({ picked: { [this._sel]: 1 }, anchor: this._sel }, () => this.pickRange(nx, true)); else this.pickRange(nx, true); }
+      else if (e.key === 'j') this.select(ord[Math.min(ord.length - 1, cur + 1)]);
+      else if (e.key === 'k') this.select(ord[Math.max(0, cur - 1)]);
+      else if (e.key === 'x' && this._sel) this.pickRange(this._sel, false);
+      else if (e.key === 'e' && Object.keys(this.state.picked).length) this.donePicked();
+      else if (e.key === 'Enter') this.setState({ open: true });
+      else if (e.key === 'e' && this._sel) this.markDone(this._sel);
+      else if (e.key === '/') { e.preventDefault(); this.searchRef.current && this.searchRef.current.focus(); }
+      else if (e.key === '?') this.setState(s => ({ help: !s.help }));
+      else if (e.key === '[') this.toggleNav();
+      else if (e.key === 'r') this.toggleRead();
+      else if (e.key === '1') this.go('inbox'); else if (e.key === '2') this.go('filtered'); else if (e.key === '3') this.go('all');
+    };
+    window.addEventListener('keydown', this._k);
+    this._rs = () => this.forceUpdate();
+    window.addEventListener('resize', this._rs);
+  }
+  componentDidUpdate() { const n = this._attn || 0; const t = (n ? '(' + n + ') ' : '') + 'Inbox Sift'; if (document.title !== t) document.title = t; }
+  componentWillUnmount() { window.removeEventListener('keydown', this._k); window.removeEventListener('resize', this._rs); clearInterval(this._t); this._mq && this._mq.removeEventListener && this._mq.removeEventListener('change', this._mqh); }
+
+  saveLayout() { try { localStorage.setItem('ghn-proto-layout', JSON.stringify({ navW: this.state.navW, drawerW: this.state.drawerW, navCollapsed: this.state.navCollapsed })); } catch (e) {} }
+  toggleNav = () => this.setState(s => ({ navCollapsed: !s.navCollapsed }), () => this.saveLayout());
+  drag(which, e) {
+    e.preventDefault();
+    const x0 = e.clientX, nav0 = this.state.navCollapsed ? 56 : this.state.navW, d0 = this.state.drawerW;
+    const mv = ev => {
+      const dx = ev.clientX - x0;
+      if (which === 'nav') { const w = nav0 + dx; if (w < 120) this.setState({ navCollapsed: true }); else this.setState({ navCollapsed: false, navW: Math.min(340, Math.max(160, w)) }); }
+      else this.setState({ drawerW: Math.min(720, Math.round(window.innerWidth * 0.6), Math.max(280, d0 - dx)) });
+    };
+    const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); document.body.style.cursor = ''; document.body.style.userSelect = ''; this.saveLayout(); };
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  }
+  closeMenus = () => this.setState({ groupMenu: false, hostMenu: false, hostPop: null, moreMenu: false, filtMenu: false });
+  toggleRead() { const sel = this._sel; if (!sel) return; this.setState(x => { const r = { ...x.readIds }; if (r[sel]) delete r[sel]; else r[sel] = 1; return { readIds: r }; }); }
+  select(id) { if (!id) return; this.setState(s => ({ selId: id, open: true, readIds: s.readOnOpen ? { ...s.readIds, [id]: 1 } : s.readIds })); }
+  go(view) { this.setState({ view, q: '', selId: null, groupMenu: false, picked: {}, anchor: null }); }
+  pickRange(id, extend) {
+    const ord = this._order || [];
+    this.setState(s => {
+      const p = extend ? { ...s.picked } : { ...s.picked };
+      const a = s.anchor && ord.includes(s.anchor) ? s.anchor : id;
+      if (extend) { const i0 = ord.indexOf(a), i1 = ord.indexOf(id); for (let i = Math.min(i0, i1); i <= Math.max(i0, i1); i++) p[ord[i]] = 1; return { picked: p, selId: id }; }
+      if (p[id]) delete p[id]; else p[id] = 1;
+      return { picked: p, anchor: id, selId: id };
+    });
+  }
+  donePicked = () => { const ids = Object.keys(this.state.picked); if (!ids.length) return; const ord = this._order || []; const rest = ord.filter(i => !this.state.picked[i]); this.setState(s => { const d = { ...s.doneIds }; ids.forEach(i => { d[i] = 1; }); return { doneIds: d, picked: {}, anchor: null, selId: rest[0] || null }; }); };
+  readPicked = () => this.setState(s => { const r = { ...s.readIds }; Object.keys(s.picked).forEach(i => { r[i] = 1; }); return { readIds: r, picked: {}, anchor: null }; });
+  markDone(id) {
+    const ord = this._order || [], i = ord.indexOf(id);
+    const next = ord[i + 1] || ord[i - 1] || null;
+    this.setState(s => ({ doneIds: { ...s.doneIds, [id]: 1 }, selId: next }));
+  }
+  startBulk = () => {
+    const ids = this._filteredIds || [];
+    if (!ids.length) return;
+    const byId = Object.fromEntries(this.data.map(n => [n.id, n]));
+    const gh = ids.filter(id => byId[id].host === 'github.com').length;
+    clearInterval(this._t);
+    this.setState({ bulk: { phase: 'confirm', ids, total: ids.length, gh, ghe: ids.length - gh, i: 0, ok: 0, fail: [] } });
+  };
+  confirmBulk = () => {
+    this.setState(s => ({ bulk: { ...s.bulk, phase: 'running' } }));
+    clearInterval(this._t);
+    this._t = setInterval(() => {
+      const b = this.state.bulk;
+      if (!b || b.phase !== 'running') { clearInterval(this._t); return; }
+      const chunk = b.ids.slice(b.i, b.i + 4);
+      const done = { ...this.state.doneIds }, fail = [...b.fail];
+      let ok = b.ok;
+      chunk.forEach((id, j) => { if ((b.i + j) % 37 === 19) fail.push(id); else { done[id] = 1; ok++; } });
+      const i = b.i + chunk.length;
+      const phase = i >= b.ids.length ? 'done' : 'running';
+      if (phase === 'done') clearInterval(this._t);
+      this.setState({ doneIds: done, bulk: { ...b, i, ok, fail, phase } });
+    }, 140);
+  };
+  retryFailed = () => this.setState(s => {
+    const done = { ...s.doneIds }; s.bulk.fail.forEach(id => { done[id] = 1; });
+    return { doneIds: done, bulk: { ...s.bulk, ok: s.bulk.ok + s.bulk.fail.length, fail: [] } };
+  });
+
+  renderVals() {
+    const T = n => `url(https://unpkg.com/@tabler/icons@3.19.0/icons/outline/${n}.svg) center/contain no-repeat`;
+    const st = this.state;
+    const hostProblem = this.props.hostProblem ?? 'expired';
+    const tex = 'conic-gradient(var(--accent-dither) 25%, transparent 0 50%, var(--accent-dither) 0 75%, transparent 0)';
+    const PAL = ['#dfe4fa', '#d9f0de', '#ffecc2', '#fde3d6', '#d9eefa', '#f3c4b9', '#cfe8f7', '#fbe7b4'];
+    const humans = ['mlee', 'jpark', 'ssato', 'rkhan', 'tnguyen', 'abrooks', 'cwu', 'lgarcia'];
+    const isBot = a => /\[bot\]|-bot$/.test(a);
+    const avBg = a => isBot(a) ? '#d8d4ca' : PAL[Math.max(0, humans.indexOf(a)) % PAL.length];
+    const ini = a => { const b = a.replace(/\[bot\]|-bot$/, ''); return (b[0] + (b.split(/[-_]/)[1] ? b.split(/[-_]/)[1][0] : b[1])).toUpperCase(); };
+    const ageText = m => m < 60 ? m + 'm' : m < 1440 ? Math.floor(m / 60) + 'h' : Math.floor(m / 1440) + 'd';
+    const TAG = { review_requested: 'REVIEW', mention: 'MENTION', approval_requested: 'APPROVAL', team_mention: 'TEAM', subscribed: 'SUBSCRIBED', comment: 'COMMENT', author: 'AUTHOR', state_change: 'STATE' };
+    const TAGI = { review_requested: 'eye', mention: 'at', approval_requested: 'hourglass', team_mention: 'users', subscribed: 'bell', comment: 'message', author: 'pencil', state_change: 'arrows-exchange' };
+    const KIND = { pr: ['git-pull-request', 'Pull request'], issue: ['circle-dot', 'Issue'], deploy: ['rocket', 'Deployment'], release: ['tag', 'Release'] };
+    const SENT = { review_requested: 'Your review was requested.', mention: 'You were @mentioned.', approval_requested: 'A deployment is waiting for your approval.', team_mention: 'Your team was mentioned.', subscribed: "You're watching this repository or thread.", comment: 'You commented on this thread.', author: 'You opened this.', state_change: 'You changed its state.' };
+    const WHY = { review_requested: 'your review is requested', mention: 'you were @mentioned', approval_requested: 'a deployment is waiting for your approval' };
+
+    const live = this.data.filter(n => !st.doneIds[n.id] && st.hosts[n.host]).map(n => {
+      const always = !!WHY[n.reason];
+      const hiddenBy = st.exRepo[n.repo] ? 'repo ' + n.repo : st.exPeople[n.actor] ? n.actor : null;
+      return { ...n, always, hiddenBy, unread: n.unread && !st.readIds[n.id] };
+    });
+    const inboxAll = live.filter(n => !n.hiddenBy || n.always);
+    const filteredAll = live.filter(n => n.hiddenBy && !n.always);
+    this._attn = inboxAll.filter(n => n.always && n.unread).length;
+    this._filteredIds = filteredAll.map(n => n.id);
+    const view = st.view;
+    const isList = ['inbox', 'filtered', 'all'].includes(view);
+    let base = view === 'inbox' ? inboxAll : view === 'filtered' ? filteredAll : live;
+    const q = st.q.trim().toLowerCase();
+    if (q) base = base.filter(n => (n.title + ' ' + n.repo + ' ' + n.actor + ' ' + n.reason).toLowerCase().includes(q));
+    if (view === 'inbox') base = [...base.filter(n => n.always && n.unread), ...base.filter(n => !(n.always && n.unread))];
+    const gb = view === 'filtered' ? st.groupBy : 'none';
+    if (gb !== 'none') { const key = gb === 'repo' ? 'repo' : 'actor'; base = [...base].sort((a, b) => a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : a.age - b.age); }
+    const ids = base.map(n => n.id);
+    const sel = ids.includes(st.selId) ? st.selId : ids[0] || null;
+    this._sel = sel; this._order = ids;
+
+    const deco = n => ({
+      ...n, ageText: ageText(n.age), ini: ini(n.actor), avBg: avBg(n.actor), avRadius: isBot(n.actor) ? '4px' : '50%',
+      kindMask: T(KIND[n.kind][0]), kindLabel: KIND[n.kind][1], reasonTag: TAG[n.reason], tagIcon: T(TAGI[n.reason]),
+      why: SENT[n.reason] + (n.always && n.hiddenBy ? ' Shown even though ' + n.hiddenBy + ' is filtered out.' : n.hiddenBy ? ' Hidden by your ' + n.hiddenBy + ' filter.' : ''),
+      bg: st.picked[n.id] || (n.id === sel && st.open) ? 'var(--accent-wash)' : 'var(--surface)', bar: n.id === sel ? 'inset 2px 0 0 var(--accent)' : 'none',
+      weight: n.unread ? 600 : 400, dotOp: n.unread ? 1 : 0,
+      tagBg: n.always ? 'var(--wait-tag)' : 'var(--q-tag)', tagFg: n.always ? 'var(--wait-fg)' : 'var(--q-fg)',
+      select: e => { if (e && e.shiftKey) { e.preventDefault(); this.pickRange(n.id, true); } else if (e && (e.metaKey || e.ctrlKey)) this.pickRange(n.id, false); else { if (Object.keys(st.picked).length) this.setState({ picked: {}, anchor: null }); this.select(n.id); } },
+      picked: !!st.picked[n.id], pickClick: e => { e.stopPropagation(); this.pickRange(n.id, e.shiftKey); }, noop: () => {},
+      hover: st.hoverId === n.id, notHover: st.hoverId !== n.id,
+      hoverOn: () => this.setState({ hoverId: n.id }), hoverOff: () => this.setState(x => x.hoverId === n.id ? { hoverId: null } : null),
+      qDone: e => { e.stopPropagation(); this.markDone(n.id); }, qRead: e => { e.stopPropagation(); this.setState(x => { const r = { ...x.readIds }; if (r[n.id]) delete r[n.id]; else r[n.id] = 1; return { readIds: r }; }); }, qOpen: e => { e.stopPropagation(); },
+    });
+    const rows = base.slice(0, 160).map(deco);
+    let groups;
+    if (gb !== 'none') {
+      const key = gb === 'repo' ? 'repo' : 'actor', m = {}, order = [];
+      rows.forEach(r => { if (!m[r[key]]) { m[r[key]] = []; order.push(r[key]); } m[r[key]].push(r); });
+      groups = order.map(k => ({ name: k, count: m[k].length, rows: m[k], showHead: true, icon: T(gb === 'repo' ? 'book' : 'user') }));
+    } else groups = [{ name: '', rows, showHead: false }];
+
+    const selN = live.find(n => n.id === sel);
+    const s = selN ? deco(selN) : null;
+    if (s) {
+      const h = s.h;
+      s.keptBar = s.hiddenBy ? 'GETS THROUGH YOUR FILTERS' : 'PINNED TO THE TOP';
+      s.keptNote = s.always && s.hiddenBy ? `You filtered out ${s.hiddenBy}, but this still shows because ${WHY[s.reason]}. Mentions, review requests and approvals always get through.` : s.always ? `At the top because ${WHY[s.reason]}.` : '';
+      s.hiddenNote = s.hiddenBy && !s.always ? `Hidden by your ${s.hiddenBy} filter. On GitHub it's still ${s.unread ? 'unread' : 'read'} and not Done.` : '';
+      s.readLabel = s.unread ? 'UNREAD' : 'READ'; s.readIcon = T(s.unread ? 'mail' : 'mail-opened');
+      s.readBg = s.unread ? 'var(--run-tag)' : 'var(--q-tag)'; s.readFg = s.unread ? 'var(--run-fg)' : 'var(--q-fg)';
+      s.readAction = s.unread ? 'Mark read' : 'Mark unread';
+      s.isPr = s.kind === 'pr';
+      const bot = isBot(s.actor);
+      s.add = bot ? 4 + h % 20 : 30 + (h * 13) % 260; s.del = bot ? 2 + h % 6 : 5 + (h * 7) % 90; s.files = bot ? 1 + h % 2 : 2 + h % 9;
+      s.pass = 6 + h % 8; s.failing = h % 3 === 0; s.failCheck = ['lint', 'e2e', 'typecheck'][h % 3 === 0 ? (h >> 2) % 3 : 0];
+      s.reviews = s.reason === 'review_requested' ? 'ssato approved · you pending' : bot ? 'none required' : ['ssato approved', 'no reviews yet', 'jpark requested changes'][h % 3];
+      s.merge = s.failing ? 'blocked by 1 failing check' : s.reviews.includes('changes') ? 'changes requested' : s.reviews.includes('pending') || s.reviews.includes('no reviews') ? 'waiting on review' : 'ready to merge';
+      s.mergeFg = s.failing || s.reviews.includes('changes') ? 'var(--wait-fg)' : s.merge === 'ready to merge' ? 'var(--done-fg)' : 'var(--ink2)';
+      const ev = (who, what, when, snippet) => ({ who, what, when, snippet: snippet || '', ini: ini(who), bg: avBg(who), radius: isBot(who) ? '4px' : '50%' });
+      const a = s.age;
+      let events;
+      if (s.kind === 'deploy') events = [ev('github-actions[bot]', 'is waiting for approval on production', ageText(a)), ev('rkhan', 'merged #1188 into main', ageText(a + 6))];
+      else if (s.kind === 'release') events = [ev(s.actor, 'published ' + s.num, ageText(a))];
+      else if (bot) events = [ev(s.actor, 'opened this pull request', ageText(a)), ev('github-actions[bot]', s.failing ? 'reported 1 failing check' : 'reported all checks passed', ageText(a + 2))];
+      else events = [
+        ...(s.reason === 'review_requested' ? [ev(s.actor, 'requested your review', ageText(a))] : s.reason === 'mention' ? [ev(s.actor, 'mentioned you', ageText(a), '"@dbirks can you sanity-check the retry cap before we ship this?"')] : []),
+        ev(s.actor === 'jpark' ? 'ssato' : 'jpark', 'commented', ageText(a + 9), ['"Can we cap the backoff at 5 minutes? Otherwise GHES users wait forever."', '"Repro is consistent on Firefox, not on Chrome."', '"LGTM once the test is un-skipped."'][h % 3]),
+        ...(s.kind === 'pr' ? [ev(s.actor, 'pushed ' + (1 + h % 3) + (h % 3 ? ' commits' : ' commit'), ageText(a + 21))] : [ev(s.actor, 'opened this issue', ageText(a + 120))]),
+      ];
+      s.events = events;
+      s.actHead = s.unread ? `SINCE YOU LAST READ · ${events.length} EVENTS` : 'RECENT ACTIVITY';
+    }
+    const people = s ? [
+      { name: s.actor, role: s.role === 'unknown' ? 'role unknown' : s.role, ini: s.ini, bg: s.avBg, radius: s.avRadius },
+      ...(s.actor !== 'jpark' && !isBot(s.actor) ? [{ name: 'jpark', role: 'commenter', ini: 'JP', bg: avBg('jpark'), radius: '50%' }] : []),
+      { name: 'dbirks', role: 'you · ' + s.reason.replace('_', ' '), ini: 'DB', bg: '#2f4bd6', fg: '#FFFFFF', radius: '50%' },
+    ].map(p => ({ fg: '#3A3833', ...p })) : [];
+
+    const navItem = (id, label, icon, count) => {
+      const on = view === id;
+      return { label, count, icon: T(icon), go: () => this.go(id), border: on ? 'var(--accent-ring)' : 'transparent', bg: on ? 'var(--accent-wash)' : 'transparent', tex: on ? tex : 'none', fg: on ? 'var(--accent-text)' : 'var(--ink)', weight: on ? 600 : 400, countFg: on ? 'var(--accent-text)' : 'var(--muted)' };
+    };
+    const repoAgg = {}, peopleAgg = {};
+    this.data.filter(n => !st.doneIds[n.id]).forEach(n => {
+      (repoAgg[n.repo] = repoAgg[n.repo] || { host: n.host, count: 0 }).count++;
+      const p = (peopleAgg[n.actor] = peopleAgg[n.actor] || { count: 0, roles: {} }); p.count++; p.roles[n.role] = 1;
+    });
+    const rq = st.repoQ.toLowerCase(), pq = st.peopleQ.toLowerCase();
+    const repoRows = Object.keys(repoAgg).sort().filter(k => k.includes(rq)).map(k => { const hid = !!st.exRepo[k]; return { name: k, host: repoAgg[k].host, count: repoAgg[k].count, shown: !hid,
+      fg: hid ? 'var(--muted)' : 'var(--ink)', deco: hid ? 'line-through' : 'none', weight: hid ? 400 : 600,
+      toggle: () => this.setState(x => { const e = { ...x.exRepo }; if (e[k]) delete e[k]; else e[k] = 1; return { exRepo: e }; }) }; });
+    const peopleRows = Object.keys(peopleAgg).sort((a, b) => peopleAgg[b].count - peopleAgg[a].count).filter(k => k.includes(pq)).map(k => { const hid = !!st.exPeople[k]; return { name: k, ini: ini(k), bg: avBg(k), radius: isBot(k) ? '5px' : '50%', isBot: isBot(k), count: peopleAgg[k].count, roles: Object.keys(peopleAgg[k].roles).join(', '), shown: !hid,
+      fg: hid ? 'var(--muted)' : 'var(--ink)', deco: hid ? 'line-through' : 'none', weight: hid ? 400 : 600, op: hid ? 0.5 : 1,
+      toggle: () => this.setState(x => { const e = { ...x.exPeople }; if (e[k]) delete e[k]; else e[k] = 1; return { exPeople: e }; }) }; });
+
+    const seg = (on) => ({ bg: on ? 'var(--ink)' : 'var(--surface)', fg: on ? 'var(--surface)' : 'var(--ink)' });
+    const sample = this.data.slice(0, 4).map(n => ({ ...n, ageText: ageText(n.age), avBg: avBg(n.actor) }));
+    const densOpts = [
+      { id: 'compact', name: 'Compact', desc: '32px rows on one line: repository, title, reason and age, with a small avatar.', rowH: '26px', av: '14px', twoLine: false },
+      { id: 'balanced', name: 'Balanced', desc: '52px rows. Adds a second line with the number, actor and role, and the host.', rowH: '40px', av: '24px', twoLine: true },
+    ].map(d => { const on = st.dens === d.id; return { ...d, on, sample, border: on ? 'var(--ink)' : 'var(--line-strong)', shadow: on ? '2px 2px 0 var(--ink)' : 'none', dot: on ? 'var(--accent)' : 'var(--surface)', ring: on ? 'inset 0 0 0 3px var(--surface)' : 'none', pick: () => this.setState({ dens: d.id }) }; });
+    const pollOpts = [['adaptive', 'Adaptive'], ['5m', 'Every 5 min'], ['manual', 'Manual']].map(([id, label]) => ({ label, ...seg(st.poll === id), pick: () => this.setState({ poll: id }) }));
+    const themeOpts = [['light', 'Light', 'sun'], ['dark', 'Dark', 'moon'], ['system', 'System', 'device-desktop']].map(([id, label, ic]) => ({ label, icon: T(ic), ...seg(st.theme === id), pick: () => this.setState({ theme: id }) }));
+    const sysDark = this._mq ? this._mq.matches : false;
+    const themeAttr = st.theme === 'system' ? (sysDark ? 'dark' : 'light') : st.theme;
+
+    const hostCounts = {};
+    this.data.filter(n => !st.doneIds[n.id]).forEach(n => { hostCounts[n.host] = (hostCounts[n.host] || 0) + 1; });
+    const gheBad = hostProblem !== 'none';
+    const hostInfo = {
+      'github.com': { ok: true, statusText: '✓ synced 40s ago', last: '40s ago', rate: '4,812 of 5,000 left', next: '60s (server hint)' },
+      'ghe.corp': gheBad
+        ? (hostProblem === 'expired'
+          ? { ok: false, statusText: '× sign-in expired', bar: '× GHE.CORP · SIGN-IN EXPIRED', body: 'Your gh token for ghe.corp was rejected. The ghe.corp notifications here are from the last sync, and no actions are sent to that host until you sign in again.', cmd: 'gh auth login -h ghe.corp', last: '2h ago', rate: 'unknown', next: 'paused until sign-in', action: 'I ran it, check again' }
+          : { ok: false, statusText: '⊘ unreachable', bar: '⊘ GHE.CORP · UNREACHABLE', body: 'No response since 9:42. You may be off VPN. The ghe.corp notifications here are from the 9:40 sync, and no actions are sent to that host until it responds.', cmd: '', last: '9:40', rate: 'unknown', next: 'retrying in 30s', action: 'Retry now' })
+        : { ok: true, statusText: '✓ synced 2m ago', last: '2m ago', rate: '4,990 of 5,000 left', next: '60s (server hint)' },
+    };
+    const hostRows = ['github.com', 'ghe.corp'].map(h => ({ name: h, on: !!st.hosts[h], count: hostCounts[h] || 0, statusText: hostInfo[h].statusText, statusFg: hostInfo[h].ok ? 'var(--done-fg)' : 'var(--fail-fg)',
+      toggle: () => this.setState(x => { const n = { ...x.hosts, [h]: !x.hosts[h] }; if (!n['github.com'] && !n['ghe.corp']) return null; return { hosts: n }; }) }));
+    const onHosts = Object.keys(st.hosts).filter(h => st.hosts[h]);
+    const hostLabel = onHosts.length === 2 ? 'All hosts (2)' : onHosts[0];
+    const hostStatus = ['github.com', 'ghe.corp'].map(h => {
+      const i = hostInfo[h];
+      return { text: h + (i.ok ? ' ' + i.statusText.replace('✓ synced ', '') : ' · ' + i.statusText.slice(2)), icon: T(i.ok ? 'circle-check' : hostProblem === 'offline' ? 'plug-connected-x' : 'alert-circle'),
+        bg: i.ok ? 'transparent' : hostProblem === 'offline' ? 'var(--fail-body)' : 'var(--fail-tag)', fg: i.ok ? 'var(--done-fg)' : 'var(--fail-fg)', weight: i.ok ? 400 : 600,
+        open: () => this.setState(x => ({ hostPop: x.hostPop === h ? null : h, hostMenu: false, groupMenu: false })) };
+    });
+    let hp = {};
+    if (st.hostPop) {
+      const i = hostInfo[st.hostPop];
+      hp = i.ok ? { bar: '✓ ' + st.hostPop.toUpperCase() + ' · HEALTHY', barBg: 'var(--done-tag)', barFg: 'var(--done-fg)', body: 'Syncing normally.', cmd: '', last: i.last, rate: i.rate, next: i.next, action: 'Close' }
+        : { ...i, barBg: 'var(--fail-tag)', barFg: 'var(--fail-pfg)' };
+    }
+
+    const b = st.bulk;
+    const keptHidden = inboxAll.filter(n => n.always && n.hiddenBy).length;
+    const titles = { inbox: 'Inbox', filtered: 'Filtered out', all: 'All notifications' };
+    const subs = {
+      inbox: `Mentions, review requests and approvals always get through your filters and sit at the top. ${keptHidden} of them are from repos or people you filtered out.`,
+      filtered: 'Hidden by your repository and people filters. Nothing here has been changed on GitHub.',
+      all: 'Everything cached locally, including filtered-out notifications.',
+    };
+    const GB = { none: ['Group: none', 'list'], repo: ['Group: repository', 'book'], actor: ['Group: actor', 'user'] };
+    const balanced = st.dens === 'balanced';
+    const showDrawer = isList && st.open && !!s;
+    const running = !!b && b.phase === 'running';
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1400, LIST = 480;
+    let navPx = st.navCollapsed ? 56 : Math.min(st.navW, Math.max(160, Math.round(vw * 0.2)));
+    let drPx = showDrawer ? Math.min(st.drawerW, Math.max(260, vw - navPx - LIST)) : 0;
+    if (showDrawer && vw - navPx - drPx < LIST && !st.navCollapsed) navPx = Math.max(150, vw - drPx - LIST);
+    const colsStr = navPx + 'px minmax(' + Math.min(LIST, Math.max(0, vw - navPx - drPx)) + 'px,1fr)' + (showDrawer ? ' ' + drPx + 'px' : '');
+    const openLabel = drPx >= 340 ? 'Open on GitHub' : drPx >= 300 ? 'Open' : '';
+    const moreItems = s ? [
+      { label: s.unread ? 'Mark read' : 'Mark unread', key: 'r', icon: T(s.unread ? 'mail-opened' : 'mail'), act: () => { this.toggleRead(); this.setState({ moreMenu: false }); } },
+      { label: 'Unsubscribe', key: '', icon: T('bell-off'), act: () => this.setState({ moreMenu: false }) },
+    ].map(m => ({ sep: false, ...m })) : [];
+    const filtItems = s ? [
+      { label: (st.exRepo[s.repo] ? 'Show ' : 'Filter out ') + s.repo, key: '', icon: T(st.exRepo[s.repo] ? 'filter' : 'filter-off'), act: () => this.setState(x => { const e = { ...x.exRepo }; if (e[s.repo]) delete e[s.repo]; else e[s.repo] = 1; return { exRepo: e, filtMenu: false }; }) },
+      { label: (st.exPeople[s.actor] ? 'Show ' : 'Filter out ') + s.actor, key: '', icon: T(st.exPeople[s.actor] ? 'user-check' : 'user-off'), act: () => this.setState(x => { const e = { ...x.exPeople }; if (e[s.actor]) delete e[s.actor]; else e[s.actor] = 1; return { exPeople: e, filtMenu: false }; }) },
+    ] : [];
+    const pickN = Object.keys(st.picked).filter(id => ids.includes(id)).length;
+    return {
+      openLabel, openPad: openLabel ? '12px' : '7px', moreItems, moreMenu: !!st.moreMenu,
+      toggleMore: () => this.setState(x => ({ moreMenu: !x.moreMenu, filtMenu: false, hostMenu: false, groupMenu: false, hostPop: null })),
+      filtItems, filtMenu: !!st.filtMenu, filtCaretR: drPx >= 370 ? '90px' : '54px', filtLabel: drPx >= 370 ? 'Filter out…' : '', filtPad: drPx >= 370 ? '12px' : '7px',
+      toggleFilt: () => this.setState(x => ({ filtMenu: !x.filtMenu, moreMenu: false, hostMenu: false, groupMenu: false, hostPop: null })),
+      pickMode: pickN > 0, notPickMode: pickN === 0, pickCount: pickN, c1: pickN > 0 ? '16px' : '8px',
+      pickAll: () => this.setState({ picked: Object.fromEntries(ids.map(i => [i, 1])) }), donePicked: this.donePicked, readPicked: this.readPicked, clearPicked: () => this.setState({ picked: {}, anchor: null }),
+      tip: !!st.tip, tipOn: () => this.setState({ tip: true }), tipOff: () => this.setState({ tip: false }),
+      themeAttr,
+      cols: colsStr,
+      navOpen: !st.navCollapsed, navJustify: st.navCollapsed ? 'center' : 'flex-start', navPadX: st.navCollapsed ? '8px' : '10px', navHeadPad: st.navCollapsed ? '0' : '8px',
+      navToggleIcon: T(st.navCollapsed ? 'layout-sidebar-left-expand' : 'layout-sidebar-left-collapse'), navToggleTitle: st.navCollapsed ? 'Expand sidebar ([)' : 'Collapse sidebar ([)',
+      toggleNav: this.toggleNav, startNavDrag: e => this.drag('nav', e), startDrawerDrag: e => this.drag('drawer', e),
+      resetNav: () => this.setState({ navW: 212, navCollapsed: false }, () => this.saveLayout()), resetDrawer: () => this.setState({ drawerW: 360 }, () => this.saveLayout()),
+      nav1: [navItem('inbox', 'Inbox', 'inbox', inboxAll.length), navItem('filtered', 'Filtered out', 'filter-off', filteredAll.length), navItem('all', 'All', 'list', live.length)],
+      nav2: [navItem('repos', 'Repositories', 'book'), navItem('people', 'People', 'users'), navItem('settings', 'Settings', 'settings')],
+      hostLabel, hostMenu: st.hostMenu, hostRows, toggleHostMenu: () => this.setState(x => ({ hostMenu: !x.hostMenu, groupMenu: false, hostPop: null })),
+      hostStatus, hostPop: !!st.hostPop, hp,
+      anyMenu: st.hostMenu || st.groupMenu || !!st.hostPop || !!st.moreMenu || !!st.filtMenu, closeMenus: this.closeMenus,
+      isList, isFiltered: view === 'filtered', isRepos: view === 'repos', isPeople: view === 'people', isSettings: view === 'settings',
+      viewTitle: titles[view], viewSub: subs[view], listCount: base.length, groups,
+      groupLabel: GB[st.groupBy][0], groupIcon: T(GB[st.groupBy][1]), groupMenu: st.groupMenu,
+      toggleGroupMenu: () => this.setState(x => ({ groupMenu: !x.groupMenu, hostMenu: false, hostPop: null })),
+      groupOpts: Object.keys(GB).map(k => ({ label: GB[k][0], icon: T(GB[k][1]), bg: st.groupBy === k ? 'var(--accent-wash)' : 'transparent', weight: st.groupBy === k ? 600 : 400, checkOp: st.groupBy === k ? 1 : 0, pick: () => this.setState({ groupBy: k, groupMenu: false }) })),
+      isEmpty: isList && base.length === 0,
+      emptyTitle: q ? 'No matches' : view === 'filtered' ? 'Nothing is filtered out' : 'Inbox is clear',
+      emptySub: q ? `Nothing in ${titles[view]} matches "${st.q}".` : view === 'filtered' ? 'Everything your filters caught has been marked Done.' : `${filteredAll.length} notifications are still in Filtered Out.`,
+      q: st.q, onQ: e => this.setState({ q: e.target.value }), searchRef: this.searchRef, searchPh: `Search ${base.length} in ${titles[view] || ''}`,
+      balanced, rowH: balanced ? '52px' : '32px', avSize: balanced ? '28px' : '18px',
+      startBulk: this.startBulk, bulkDisabled: filteredAll.length === 0 || running,
+      showDrawer, s: s || {}, people, closeDrawer: () => this.setState({ open: false }),
+      doneSel: () => sel && this.markDone(sel),
+      readSel: () => this.toggleRead(),
+      repoRows, repoShown: repoRows.filter(r => r.shown).length, repoTotal: repoRows.length, repoQ: st.repoQ, onRepoQ: e => this.setState({ repoQ: e.target.value }),
+      peopleRows, peopleShown: peopleRows.filter(r => r.shown).length, peopleTotal: peopleRows.length, peopleQ: st.peopleQ, onPeopleQ: e => this.setState({ peopleQ: e.target.value }),
+      densOpts, pollOpts, themeOpts, readOnOpen: st.readOnOpen, toggleReadOnOpen: () => this.setState(x => ({ readOnOpen: !x.readOnOpen })),
+      pollText: st.poll === 'adaptive' ? 'next refresh in 60s' : st.poll === 'manual' ? 'refresh: manual' : 'next refresh in 5m',
+      bulk: b || {}, bulkConfirm: !!b && b.phase === 'confirm', bulkTray: !!b && b.phase !== 'confirm' && view === 'filtered',
+      cancelBulk: () => this.setState({ bulk: null }), confirmBulk: this.confirmBulk, retryFailed: this.retryFailed,
+      trayTag: !b ? '' : running ? 'MARKING DONE' : b.fail.length ? 'FINISHED WITH FAILURES' : 'COMPLETED',
+      trayIcon: T(running ? 'loader-2' : b && b.fail.length ? 'circle-x' : 'circle-check'),
+      trayTagBg: !b ? '' : running ? 'var(--run-tag)' : b.fail.length ? 'var(--fail-tag)' : 'var(--done-tag)',
+      trayTagFg: !b ? '' : running ? 'var(--run-fg)' : b.fail.length ? 'var(--fail-fg)' : 'var(--done-fg)',
+      trayTitle: !b ? '' : running ? `${b.i} of ${b.total} sent` : `${b.ok} of ${b.total} marked Done`,
+      trayActionLabel: running ? 'Stop' : 'Close',
+      trayAction: () => { if (running) { clearInterval(this._t); this.setState({ bulk: { ...b, phase: 'done' } }); } else this.setState({ bulk: null }); },
+      bulkPct: b && b.total ? (b.ok / b.total * 100) + '%' : '0%', bulkFailPct: b && b.total ? (b.fail.length / b.total * 100) + '%' : '0%',
+      bulkFailN: b ? b.fail.length : 0, bulkHasFail: !!b && b.fail.length > 0, bulkCanRetry: !!b && b.phase === 'done' && b.fail.length > 0,
+      help: st.help, toggleHelp: () => this.setState(x => ({ help: !x.help })),
+      keys: [{ k: 'j / k', d: 'Next / previous notification' }, { k: 'enter', d: 'Open detail panel' }, { k: 'esc', d: 'Close panel, menu or dialog' }, { k: 'e', d: 'Mark Done on GitHub' }, { k: 'r', d: 'Toggle read / unread' }, { k: 'x', d: 'Select row' }, { k: 'J / K', d: 'Extend selection down / up' }, { k: '/', d: 'Search this view' }, { k: '1 2 3', d: 'Inbox, Filtered out, All' }, { k: '[', d: 'Collapse or expand the sidebar' }, { k: '?', d: 'Show this list' }],
+    };
+  }
+}
+</script>
+</body>
+</html>
+
