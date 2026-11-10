@@ -369,3 +369,31 @@ async def test_check_now_reports_the_failure_without_raising() -> None:
     engine = _engine(_seeded_db(), {"ghe.corp": broken})
     status = await engine.check_now("ghe.corp")
     assert status.status == "expired" and status.fix_command == "gh auth login -h ghe.corp"
+
+
+async def test_an_unhealthy_host_stays_blocked_while_its_retry_is_in_flight() -> None:
+    """Regression: a retry used to flip an expired host to 'syncing', which counts as healthy, so actions
+    could be sent to a host whose sign-in had expired while the retry was still running."""
+    db = _seeded_db()
+    clients = _demo_clients(scenario=DemoScenario(latency_s=0.05, host_problem="expired"))
+    engine = _engine(db, clients)
+    status = await engine.sync_host("ghe.corp")
+    assert status.status == "expired"
+
+    retry = asyncio.create_task(engine.sync_host("ghe.corp"))
+    await asyncio.sleep(0.01)  # mid-flight: the fake client is still "waiting on the network"
+    assert status.status == "expired" and status.healthy is False
+    await retry
+
+
+async def test_only_the_first_sync_reports_syncing() -> None:
+    db = _seeded_db()
+    engine = _engine(db, _demo_clients(scenario=DemoScenario(latency_s=0.05, host_problem="none")))
+    first = asyncio.create_task(engine.sync_host("github.com"))
+    await asyncio.sleep(0.01)
+    assert engine.statuses["github.com"].status == "syncing"
+    await first
+    again = asyncio.create_task(engine.sync_host("github.com"))
+    await asyncio.sleep(0.01)
+    assert engine.statuses["github.com"].status == "ok"  # routine polls don't flicker the chip
+    await again

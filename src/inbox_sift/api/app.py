@@ -105,9 +105,11 @@ def _counts(ctx: AppContext) -> dict[str, int]:
 async def run_startup(ctx: AppContext) -> asyncio.Task[None] | None:
     """Seed host statuses (demo) or launch the polling loop (real). Returns the loop task, if any."""
     if ctx.demo:
+        # Seed statuses synchronously so the first page load already shows ghe.corp expired/offline,
+        # then keep polling like the real app (the fake answers 304) so "synced Ns ago" stays fresh.
         for host in list(ctx.clients):
             await ctx.sync.sync_host(host)
-        return None
+        return asyncio.create_task(ctx.sync.run(), name="inbox-sift-demo-sync")
     for host, client in list(ctx.clients.items()):
         with contextlib.suppress(Exception):  # an unknown login only costs us the "you" highlighting
             ctx.you[host] = await client.viewer_login()

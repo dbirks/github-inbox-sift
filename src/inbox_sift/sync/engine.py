@@ -163,7 +163,10 @@ class SyncEngine:
         async with self._locks[host]:
             if client is None:
                 return self._record_failure(host, GitHubError("offline", f"no client for {host}"))
-            status.status = "syncing"
+            # 'syncing' only on the very first sync. A routine poll keeps 'ok', and an unhealthy host keeps its
+            # error state while retrying, so actions stay blocked until the host actually answers.
+            if status.status == "ok" and status.last_sync is None:
+                status.status = "syncing"
             self._last_sync[host] = self.clock()
             state = self.db.get_host_state(host) or {}
             try:
