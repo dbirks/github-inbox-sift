@@ -2,7 +2,10 @@
 // Each worker gets a fresh demo server on its own port so tests can mutate state freely.
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = Number(process.env.E2E_PORT || 9400 + Math.floor(Math.random() * 400));
+// The config is evaluated in the runner AND in every worker process: pick the port once and pass it down via
+// the environment so the webServer and the tests' baseURL agree.
+process.env.E2E_PORT ||= String(9400 + Math.floor(Math.random() * 400));
+const PORT = Number(process.env.E2E_PORT);
 
 export default defineConfig({
   testDir: 'tests/e2e',
