@@ -100,12 +100,19 @@ input:focus{outline:none}
   </div>
   </sc-if>
   <div style="flex:1;overflow:auto;min-height:0;background:var(--surface)">
+   <div style="position:sticky;top:0;z-index:2;display:grid;grid-template-columns:{{ c1 }} 16px {{ avSize }} {{ repoCol }} minmax(120px,1fr) {{ reasonCol }} 36px;align-items:center;gap:10px;height:26px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line);font:600 10px 'Red Hat Mono';letter-spacing:.04em;color:var(--muted)">
+    <span style="grid-column:1 / span 3"></span>
+    <span style="position:relative;height:100%;display:flex;align-items:center">REPOSITORY<span onMouseDown="{{ startRepoDrag }}" onDoubleClick="{{ resetRepo }}" title="Drag to resize · double-click to reset" style="position:absolute;top:0;right:-9px;width:8px;height:100%;cursor:col-resize;display:flex;justify-content:center" style-hover="background:var(--accent-wash)"><span style="width:1px;height:12px;margin-top:7px;background:var(--line-strong)"></span></span></span>
+    <span style="position:relative;height:100%;display:flex;align-items:center">TITLE<span onMouseDown="{{ startReasonDrag }}" onDoubleClick="{{ resetReason }}" title="Drag to resize · double-click to reset" style="position:absolute;top:0;right:-9px;width:8px;height:100%;cursor:col-resize;display:flex;justify-content:center" style-hover="background:var(--accent-wash)"><span style="width:1px;height:12px;margin-top:7px;background:var(--line-strong)"></span></span></span>
+    <span style="justify-self:end">REASON</span>
+    <button onClick="{{ toggleSort }}" title="{{ sortTitle }}" aria-label="{{ sortTitle }}" style="justify-self:end;display:inline-flex;align-items:center;gap:2px;border:0;background:transparent;padding:0;font:600 10px 'Red Hat Mono';letter-spacing:.04em;color:var(--ink2);cursor:pointer" style-hover="color:var(--ink)">AGE<span style="width:11px;height:11px;background:currentColor;mask:{{ sortIcon }}"></span></button>
+   </div>
    <sc-for list="{{ groups }}" as="g" hint-placeholder-count="1">
    <sc-if value="{{ g.showHead }}" hint-placeholder-val="{{ false }}">
-   <div style="position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;height:28px;padding:0 16px;background:var(--fill);border-bottom:1px solid var(--line);font:600 10.5px 'Red Hat Mono';letter-spacing:.03em;color:var(--ink2)"><span style="width:13px;height:13px;background:var(--muted);mask:{{ g.icon }}"></span><span>{{ g.name }}</span><span style="color:var(--muted)">{{ g.count }}</span></div>
+   <div style="position:sticky;top:26px;z-index:1;display:flex;align-items:center;gap:8px;height:28px;padding:0 16px;background:var(--fill);border-bottom:1px solid var(--line);font:600 10.5px 'Red Hat Mono';letter-spacing:.03em;color:var(--ink2)"><span style="width:13px;height:13px;background:var(--muted);mask:{{ g.icon }}"></span><span>{{ g.name }}</span><span style="color:var(--muted)">{{ g.count }}</span></div>
    </sc-if>
    <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="12">
-   <div onClick="{{ r.select }}" onMouseEnter="{{ r.hoverOn }}" onMouseLeave="{{ r.hoverOff }}" style="display:grid;grid-template-columns:{{ c1 }} 16px {{ avSize }} minmax(72px,150px) minmax(120px,1fr) 104px 36px;align-items:center;gap:10px;height:{{ rowH }};padding:0 16px;border-bottom:1px solid var(--line-soft);cursor:pointer;background:{{ r.bg }};box-shadow:{{ r.bar }}" style-hover="background:var(--accent-wash)">
+   <div onClick="{{ r.select }}" onMouseEnter="{{ r.hoverOn }}" onMouseLeave="{{ r.hoverOff }}" style="display:grid;grid-template-columns:{{ c1 }} 16px {{ avSize }} {{ repoCol }} minmax(120px,1fr) {{ reasonCol }} 36px;align-items:center;gap:10px;height:{{ rowH }};padding:0 16px;border-bottom:1px solid var(--line-soft);cursor:pointer;background:{{ r.bg }};box-shadow:{{ r.bar }}" style-hover="background:var(--accent-wash)">
     <sc-if value="{{ pickMode }}" hint-placeholder-val="{{ false }}"><input type="checkbox" checked="{{ r.picked }}" onClick="{{ r.pickClick }}" onChange="{{ r.noop }}" aria-label="Select" style="width:14px;height:14px;accent-color:var(--accent);margin:0;cursor:pointer"></sc-if>
     <sc-if value="{{ notPickMode }}" hint-placeholder-val="{{ true }}"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-text);opacity:{{ r.dotOp }}"></span></sc-if>
     <span style="width:15px;height:15px;background:var(--muted);mask:{{ r.kindMask }}"></span>
@@ -362,7 +369,7 @@ class Component extends DCLogic {
   data = this.makeData();
   searchRef = React.createRef();
   layout = (() => { try { return JSON.parse(localStorage.getItem('ghn-proto-layout')) || {}; } catch (e) { return {}; } })();
-  state = { navW: this.layout.navW || 212, drawerW: this.layout.drawerW || 360, navCollapsed: !!this.layout.navCollapsed, view: 'inbox', selId: null, open: true, dens: 'compact', groupBy: 'none', groupMenu: false, hostMenu: false, hostPop: null, q: '',
+  state = { navW: this.layout.navW || 212, drawerW: this.layout.drawerW || 360, navCollapsed: !!this.layout.navCollapsed, repoW: this.layout.repoW || 170, reasonW: this.layout.reasonW || 104, oldest: !!this.layout.oldest, view: 'inbox', selId: null, open: true, dens: 'compact', groupBy: 'none', groupMenu: false, hostMenu: false, hostPop: null, q: '',
     hosts: { 'github.com': true, 'ghe.corp': true }, poll: 'adaptive', theme: 'light',
     exRepo: { 'acme/infra': 1, 'acme/docs': 1, 'corp/data-pipeline': 1 },
     exPeople: { 'dependabot[bot]': 1, 'renovate[bot]': 1, 'github-actions[bot]': 1 },
@@ -440,14 +447,16 @@ class Component extends DCLogic {
   componentDidUpdate() { const n = this._attn || 0; const t = (n ? '(' + n + ') ' : '') + 'Inbox Sift'; if (document.title !== t) document.title = t; }
   componentWillUnmount() { window.removeEventListener('keydown', this._k); window.removeEventListener('resize', this._rs); clearInterval(this._t); this._mq && this._mq.removeEventListener && this._mq.removeEventListener('change', this._mqh); }
 
-  saveLayout() { try { localStorage.setItem('ghn-proto-layout', JSON.stringify({ navW: this.state.navW, drawerW: this.state.drawerW, navCollapsed: this.state.navCollapsed })); } catch (e) {} }
+  saveLayout() { try { localStorage.setItem('ghn-proto-layout', JSON.stringify({ navW: this.state.navW, drawerW: this.state.drawerW, navCollapsed: this.state.navCollapsed, repoW: this.state.repoW, reasonW: this.state.reasonW, oldest: this.state.oldest })); } catch (e) {} }
   toggleNav = () => this.setState(s => ({ navCollapsed: !s.navCollapsed }), () => this.saveLayout());
   drag(which, e) {
     e.preventDefault();
-    const x0 = e.clientX, nav0 = this.state.navCollapsed ? 56 : this.state.navW, d0 = this.state.drawerW;
+    const x0 = e.clientX, nav0 = this.state.navCollapsed ? 56 : this.state.navW, d0 = this.state.drawerW, r0 = this.state.repoW, s0 = this.state.reasonW;
     const mv = ev => {
       const dx = ev.clientX - x0;
       if (which === 'nav') { const w = nav0 + dx; if (w < 120) this.setState({ navCollapsed: true }); else this.setState({ navCollapsed: false, navW: Math.min(340, Math.max(160, w)) }); }
+      else if (which === 'repo') this.setState({ repoW: Math.min(360, Math.max(80, r0 + dx)) });
+      else if (which === 'reason') this.setState({ reasonW: Math.min(220, Math.max(84, s0 - dx)) });
       else this.setState({ drawerW: Math.min(720, Math.round(window.innerWidth * 0.6), Math.max(280, d0 - dx)) });
     };
     const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); document.body.style.cursor = ''; document.body.style.userSelect = ''; this.saveLayout(); };
@@ -535,9 +544,11 @@ class Component extends DCLogic {
     let base = view === 'inbox' ? inboxAll : view === 'filtered' ? filteredAll : live;
     const q = st.q.trim().toLowerCase();
     if (q) base = base.filter(n => (n.title + ' ' + n.repo + ' ' + n.actor + ' ' + n.reason).toLowerCase().includes(q));
+    const dir = st.oldest ? -1 : 1;
+    base = [...base].sort((a, b) => (a.age - b.age) * dir);
     if (view === 'inbox') base = [...base.filter(n => n.always && n.unread), ...base.filter(n => !(n.always && n.unread))];
     const gb = view === 'filtered' ? st.groupBy : 'none';
-    if (gb !== 'none') { const key = gb === 'repo' ? 'repo' : 'actor'; base = [...base].sort((a, b) => a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : a.age - b.age); }
+    if (gb !== 'none') { const key = gb === 'repo' ? 'repo' : 'actor'; base = [...base].sort((a, b) => a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : (a.age - b.age) * dir); }
     const ids = base.map(n => n.id);
     const sel = ids.includes(st.selId) ? st.selId : ids[0] || null;
     this._sel = sel; this._order = ids;
@@ -696,6 +707,9 @@ class Component extends DCLogic {
       navOpen: !st.navCollapsed, navJustify: st.navCollapsed ? 'center' : 'flex-start', navPadX: st.navCollapsed ? '8px' : '10px', navHeadPad: st.navCollapsed ? '0' : '8px',
       navToggleIcon: T(st.navCollapsed ? 'layout-sidebar-left-expand' : 'layout-sidebar-left-collapse'), navToggleTitle: st.navCollapsed ? 'Expand sidebar ([)' : 'Collapse sidebar ([)',
       toggleNav: this.toggleNav, startNavDrag: e => this.drag('nav', e), startDrawerDrag: e => this.drag('drawer', e),
+      toggleSort: () => this.setState(x => ({ oldest: !x.oldest }), () => this.saveLayout()), sortIcon: T(st.oldest ? 'arrow-up' : 'arrow-down'), sortTitle: st.oldest ? 'Oldest first · click for newest first' : 'Newest first · click for oldest first',
+      repoCol: st.repoW + 'px', reasonCol: st.reasonW + 'px', startRepoDrag: e => this.drag('repo', e), startReasonDrag: e => this.drag('reason', e),
+      resetRepo: () => this.setState({ repoW: 170 }, () => this.saveLayout()), resetReason: () => this.setState({ reasonW: 104 }, () => this.saveLayout()),
       resetNav: () => this.setState({ navW: 212, navCollapsed: false }, () => this.saveLayout()), resetDrawer: () => this.setState({ drawerW: 360 }, () => this.saveLayout()),
       nav1: [navItem('inbox', 'Inbox', 'inbox', inboxAll.length), navItem('filtered', 'Filtered out', 'filter-off', filteredAll.length), navItem('all', 'All', 'list', live.length)],
       nav2: [navItem('repos', 'Repositories', 'book'), navItem('people', 'People', 'users'), navItem('settings', 'Settings', 'settings')],
