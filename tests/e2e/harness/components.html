@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Components harness — Inbox Sift</title>
+  <!-- Served from the repo root (python -m http.server), so every asset path is /src/inbox_sift/static/... .
+       base.css's `.icon` mask uses /static/icons/..., so the harness rewrites that prefix below. -->
+  <link rel="icon" href="/src/inbox_sift/static/brand/favicon.svg">
+  <script>
+    // The app's CSS is written against the server's /static mount, so load it through a path shim that
+    // rewrites /static/... to /src/inbox_sift/static/... (this harness is served from the repo root).
+    const APP = '/src/inbox_sift/static/';
+    // dom.js icon() writes an inline `--src: url(/static/icons/x.svg)`; shim setProperty so the URL resolves
+    // before the browser requests it (a MutationObserver fix-up would still fire the original 404).
+    const setProp = CSSStyleDeclaration.prototype.setProperty;
+    CSSStyleDeclaration.prototype.setProperty = function (name, value, ...rest) {
+      if (name === '--src' && typeof value === 'string') value = value.replaceAll('/static/', APP);
+      return setProp.call(this, name, value, ...rest);
+    };
+    document.addEventListener('DOMContentLoaded', async () => {
+      for (const href of ['css/tokens.css', 'css/base.css', 'css/views/overlays.css']) {
+        const css = await (await fetch(APP + href)).text();
+        const tag = document.createElement('style');
+        tag.textContent = css.replaceAll('/static/', APP);
+        document.head.append(tag);
+      }
+    });
+  </script>
+  <style>
+    body { padding: 24px; font: 400 12.5px var(--font-text); }
+    h1 { font: 700 16px var(--font-text); margin: 0 0 4px; }
+    .lede { color: var(--muted); margin: 0 0 20px; }
+    .demo { margin-bottom: 20px; }
+    .box { width: 300px; border: 1px dashed var(--line-strong); border-radius: 3px; padding: 12px; }
+    /* Tall enough that a 3-item menu fits below; #box-low is short and pinned low so it flips. */
+    #box { min-height: 260px; }
+    .box > .eyebrow { display: block; margin-bottom: 8px; }
+    .row { display: flex; gap: 8px; align-items: flex-start; }
+    .spacer { height: 24px; }
+    .row .flush { margin-left: auto; }
+    /* Fixed near the viewport bottom so the 9-item menu has to flip above the button. */
+    #box-low { position: fixed; left: 24px; bottom: 14px; margin: 0; }
+    .marks { display: flex; align-items: center; gap: 12px; }
+    .marks img { border: 1px solid var(--line); background: var(--surface); }
+  </style>
+</head>
+<body>
+  <h1>Shared components</h1>
+  <p class="lede">popover (clamped inside the dashed box) · dialog · tooltip · toast · brand mark</p>
+
+  <div class="demo">
+    <span class="eyebrow">Mark (16 / 32 / 64 px, svg + png)</span>
+    <div class="marks">
+      <img src="/src/inbox_sift/static/brand/mark.svg" width="16" height="16" alt="mark 16">
+      <img src="/src/inbox_sift/static/brand/mark.svg" width="32" height="32" alt="mark 32">
+      <img src="/src/inbox_sift/static/brand/mark.svg" width="64" height="64" alt="mark 64">
+      <img src="/src/inbox_sift/static/brand/favicon-16.png" width="16" height="16" alt="png 16">
+      <img src="/src/inbox_sift/static/brand/favicon-32.png" width="32" height="32" alt="png 32">
+    </div>
+  </div>
+
+  <div class="demo box" id="box">
+    <span class="eyebrow">300px panel · menus must clamp and keep the caret on the button</span>
+    <div class="row">
+      <button class="btn btn-secondary" id="open-start">Menu (start)</button>
+      <button class="btn btn-secondary" id="open-end">More (end)</button>
+      <button class="btn btn-tertiary flush" id="open-flush">⋯</button>
+    </div>
+  </div>
+
+  <div class="demo row">
+    <button class="btn btn-primary" id="open-dialog">Mark all 713 Done…</button>
+    <button class="btn btn-secondary" id="open-help">Shortcuts (?)</button>
+    <button class="btn btn-secondary" id="open-toast">Toast</button>
+    <button class="btn btn-secondary" id="tip-a" data-tip="Mark done on GitHub (e)">Hover me (tooltip)</button>
+    <button class="btn btn-secondary" id="tip-b" data-tip="">Focus me (tooltip at right edge)</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="demo box" id="box-low">
+    <span class="eyebrow">pinned to the viewport bottom · the menu flips above</span>
+    <div class="row"><button class="btn btn-secondary" id="open-tall">Tall (9 items)</button></div>
+  </div>
+
+  <div id="overlays"></div>
+
+  <script type="module">
+    import { openPopover, menuItem } from '/src/inbox_sift/static/js/components/popover.js';
+    import { openDialog } from '/src/inbox_sift/static/js/components/dialog.js';
+    import { attachTooltip } from '/src/inbox_sift/static/js/components/tooltip.js';
+    import { mount as mountOverlays } from '/src/inbox_sift/static/js/views/overlays.js';
+    import { createStore, initialState } from '/src/inbox_sift/static/js/store.js';
+    import { installKeyboard } from '/src/inbox_sift/static/js/keyboard.js';
+    import { h } from '/src/inbox_sift/static/js/dom.js';
+
+    // (icon URLs are already fixed by the setProperty shim in <head>)
+
+    // A fake store/actions so overlays.js runs exactly as it does in the app.
+    const store = createStore(initialState());
+    const actions = {
+      confirmBulk: () => store.set({ bulkConfirm: null, toast: { text: 'Bulk run started (harness)', kind: 'info' } }),
+      cancelBulk: () => store.set({ bulkConfirm: null }),
+      toggleHelp: () => store.set(s => ({ help: !s.help })),
+    };
+    // Esc order is keyboard.js's job, so install it with the view-facing actions the overlay paths touch.
+    for (const noop of ['closeMenus', 'clearPicks', 'toggleNav', 'moveSel', 'openPanel', 'go']) {
+      if (!actions[noop]) actions[noop] = () => {};
+    }
+    const view = mountOverlays(document.getElementById('overlays'), { store, actions, geom: () => ({}) });
+    store.subscribe(view.update);
+    installKeyboard(store, actions);
+    store.subscribe(s => { if (s.toast) setTimeout(() => store.set({ toast: null }), 2600); });
+
+    let open = null;
+    function pop(anchor, opts, items) {
+      if (open) open.close();
+      open = openPopover({
+        anchor, bounds: document.getElementById('box'), width: 200, testid: 'group-menu',
+        onDismiss: () => { if (open) { open.close(); open = null; } },
+        content: items.map(it => menuItem(it)),
+        ...opts,
+      });
+    }
+    const mk = (label, key) => ({ icon: 'check', label, key, onSelect: () => { console.log('select', label); if (open) { open.close(); open = null; } } });
+    const MENU = [mk('None'), mk('Repository', 'shift+r'), mk('Actor', 'shift+a')];
+    document.getElementById('open-start').onclick = () => pop(document.getElementById('open-start'), { align: 'start' }, MENU);
+    document.getElementById('open-end').onclick = () => pop(document.getElementById('open-end'), { align: 'end', width: 240 }, MENU);
+    // Wider than the box: proves horizontal clamping while the caret stays on the button.
+    document.getElementById('open-flush').onclick = () => pop(document.getElementById('open-flush'), { align: 'end', width: 320 }, MENU);
+    document.getElementById('open-tall').onclick = () => pop(document.getElementById('open-tall'),
+      { align: 'start', width: 200, bounds: document.getElementById('box-low') },
+      Array.from({ length: 9 }, (_, i) => mk('Item ' + (i + 1))));
+
+    document.getElementById('open-dialog').onclick = () => store.set({
+      bulkConfirm: { preview_id: 'p', total: 713, per_host: { 'github.com': 611, 'ghe.corp': 102 }, stale: 12,
+                     blocked: { 'ghe.corp': 7 }, source: 'filtered' },
+    });
+    document.getElementById('open-help').onclick = () => store.set({ help: true });
+    document.getElementById('open-toast').onclick = () => store.set({ toast: { text: 'ghe.corp is unavailable. Nothing was sent.', kind: 'error' } });
+
+    attachTooltip(document.getElementById('tip-a'), () => document.getElementById('tip-a').dataset.tip);
+    document.getElementById('tip-b').dataset.tip = 'Toggle read / unread (r)';
+    attachTooltip(document.getElementById('tip-b'), () => document.getElementById('tip-b').dataset.tip);
+  </script>
+</body>
+</html>

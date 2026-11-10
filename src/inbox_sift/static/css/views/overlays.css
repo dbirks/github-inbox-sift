@@ -1,0 +1,19 @@
+/* Overlays view: shortcut sheet grid + keycaps (prototype line 352-356), dialog text helpers.
+   The scrim, .dialog chrome and .toast live in base.css; nothing here restyles them. */
+
+/* Flush variant: the shortcut sheet has no title/actions block, so its body keeps the prototype's tighter padding. */
+.dialog-body-flush { padding: 12px 14px; }
+
+/* Shortcut sheet: 70px keycap column, 1fr description (design-handoff §10). */
+.shortcut-grid { display: grid; grid-template-columns: 70px 1fr; gap: 8px 12px; font-size: 12.5px; color: var(--ink2); }
+.shortcut-key {
+  justify-self: start; font-size: 11px; font-weight: 600; padding: 2px 6px; border: 1px solid var(--fill-edge);
+  border-radius: 3px; box-shadow: 1px 1px 0 var(--fill-edge); color: var(--ink); white-space: nowrap;
+}
+.shortcut-desc { align-self: center; }
+
+/* Dialog titles that exist for screen readers only (the shortcut sheet has no visible title). */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* The toast lives in #overlays but is position:fixed (base.css), so #overlays itself needs no box. */
