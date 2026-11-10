@@ -29,7 +29,7 @@ shot() { sleep "${2:-0.6}"; cli screenshot --filename="$OUT/$THEME-$1.png"; echo
 reset() { # scenario
   api POST /api/demo/reset
   api POST /api/demo/scenario "{\"host_problem\":\"$1\",\"detail_fail\":false}"
-  api PUT /api/settings "{\"theme\":\"$THEME\",\"density\":\"compact\",\"poll\":\"adaptive\",\"read_on_open\":false,\"hidden_hosts\":[],\"layout\":{\"navW\":212,\"drawerW\":360,\"navCollapsed\":false}}"
+  api PUT /api/settings "{\"theme\":\"$THEME\",\"density\":\"compact\",\"poll\":\"adaptive\",\"read_on_open\":false,\"hidden_hosts\":[],\"layout\":{\"navW\":212,\"drawerW\":360,\"navCollapsed\":false,\"repoW\":170,\"reasonW\":104,\"oldest\":false}}"
   cli reload
   sleep 1.5
 }
@@ -38,6 +38,12 @@ for THEME in light dark; do
   echo "theme: $THEME"
   reset expired
   shot 01-inbox
+  # column header states (prototype lines 103-115): defaults, wider REPOSITORY / narrower REASON, AGE oldest-first
+  shot 25-columns-default
+  ev "() => $A.setLayout({repoW: 260, reasonW: 160})"; shot 26-columns-resized
+  ev "() => $A.toggleSort()"; shot 27-sort-oldest 1.2      # server-side re-sort: give the reload a beat
+  ev "() => $A.toggleSort()"; sleep 1                      # back to newest-first
+  ev "() => $A.setLayout({repoW: 170, reasonW: 104})"       # and back to the default widths
   cli press j; shot 02-panel
   ev "() => $A.toggleMenu('filter')"; shot 03-filter-menu
   ev "() => $A.closeMenus()"; ev "() => $A.toggleMenu('more')"; shot 04-more-menu
