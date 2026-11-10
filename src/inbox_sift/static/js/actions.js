@@ -45,7 +45,8 @@ export function createActions(store) {
   };
   const listParams = (extra = {}) => {
     const s = get();
-    return { view: s.view, q: s.q.trim(), hosts: enabledHosts(), group: s.view === 'filtered' ? s.groupBy : 'none', ...extra };
+    return { view: s.view, q: s.q.trim(), hosts: enabledHosts(), group: s.view === 'filtered' ? s.groupBy : 'none',
+      sort: s.layout.oldest ? 'oldest' : 'newest', ...extra };
   };
 
   function toast(text, kind = 'error') {
@@ -533,8 +534,15 @@ export function createActions(store) {
     set({ layout });
     if (persist) { cacheLayout(layout); persistLayout(layout); }
   }
-  function resetLayout(which) {
-    setLayout(which === 'nav' ? { navW: 212, navCollapsed: false } : { drawerW: 360 });
+  const LAYOUT_RESETS = {
+    nav: { navW: 212, navCollapsed: false }, drawer: { drawerW: 360 }, repo: { repoW: 170 }, reason: { reasonW: 104 },
+  };
+  function resetLayout(which) { setLayout(LAYOUT_RESETS[which] || {}); }
+
+  /** AGE header: newest first <-> oldest first. Server-side, so paging and "Select all N" follow the same order. */
+  function toggleSort() {
+    setLayout({ oldest: !get().layout.oldest });
+    refreshList({ reset: true });
   }
   function toggleNav() { setLayout({ navCollapsed: !get().layout.navCollapsed }); }
 
@@ -554,7 +562,7 @@ export function createActions(store) {
     doneSelection, readSelection, setRule,
     startBulkFiltered, confirmBulk, cancelBulk, stopBulk, retryBulk, closeBulk,
     toggleMenu, closeMenus, toggleHelp, setHover, toggleHost, checkHost,
-    setSetting, setLayout, resetLayout, toggleNav,
+    setSetting, setLayout, resetLayout, toggleNav, toggleSort,
     loadRepos, loadPeople, setRepoQ, setPeopleQ, retryDetail, toast,
   };
 }

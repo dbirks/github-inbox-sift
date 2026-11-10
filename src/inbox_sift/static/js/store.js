@@ -19,7 +19,8 @@ export function initialState() {
     hosts: [], hiddenHosts: [],
     pollHint: 60,
     settings: { theme: 'system', density: 'compact', read_on_open: false, poll: 'adaptive' },
-    layout: { navW: lay.navW || 212, drawerW: lay.drawerW || 360, navCollapsed: !!lay.navCollapsed },
+    layout: { navW: lay.navW || 212, drawerW: lay.drawerW || 360, navCollapsed: !!lay.navCollapsed,
+      repoW: lay.repoW || 170, reasonW: lay.reasonW || 104, oldest: !!lay.oldest }, // list columns + AGE sort
     bulk: null,
     bulkConfirm: null,
     openMenu: null,
