@@ -20,6 +20,29 @@ Sources of truth for behaviour and visuals, in order:
 - **Protocols only at real boundaries**: `GitHubClient` (HTTP vs fake), a `Runner` for `gh` subprocesses, and a clock.
 - **Demo mode is a first-class adapter**, not a mock server: `FakeGitHubClient` implements the same protocol as
   `HttpGitHubClient`, so every service and the whole UI run identically without a network or `gh`.
+- **Optimistic UI, authoritative server.** Done/read update the list immediately and roll back with a toast on
+  failure; counts are always re-read from the server, never derived from rendered rows.
+- **Fixed-height virtualization.** Rows are 32 or 52px and group headers share the row height, so offsets are
+  `index * rowH`: O(1) scrolling over 1,000+ rows and a scroll position that never jumps when rows arrive (new rows
+  above the viewport surface as an "N new" pill instead).
+- **Enrichment on a budget.** The notifications API has no actor. Sync enriches at most 60 changed subjects per pass,
+  4 at a time, always-gets-through and unread first; detail data (checks, reviews, timeline) is fetched lazily only for
+  the opened item and cached. Unknown actors stay "unknown" — the app never guesses a role.
+- **Durable bulk operations over clever ones.** Targets are frozen into SQLite on confirm, each with its own status, so
+  progress survives reloads and restarts; interrupted in-flight writes become `failed(interrupted)` and are retried
+  only by an explicit Retry, never replayed automatically.
+
+## Safety model
+
+| Guarantee | Where it's enforced |
+|---|---|
+| Hiding never changes GitHub | Rules live in `rules` table; `filters/classify.py` has no I/O; no code path calls the client on a rule change |
+| Writes are explicit | Only `ActionService` / `BulkService` call `mark_done` / `mark_read` / `unsubscribe`, only from user-initiated routes; read-on-open defaults off |
+| Exact bulk targets | `BulkService.preview` resolves the full query server-side; `run` freezes those ids (`bulk_targets`) |
+| Unhealthy hosts get nothing | `HostBlocked` in `ActionService`; bulk marks those targets `skipped`; a retrying host keeps its error state |
+| Loopback-only server | CLI refuses non-loopback `--host` without `--allow-remote`; `api/security.py` checks `Host` (DNS rebinding), `Origin`, and requires `X-Inbox-Sift: 1` on writes; strict CSP |
+| Tokens stay put | `gh auth token` per host, held in the client's headers only; `__repr__`/errors never include it; host-validated base URLs and relative-only paths; avatar fetches never send a token to a different host |
+| Untrusted content | All rendering uses `textContent` via `dom.h()` (no `innerHTML` with server data) |
 
 ## Layout
 
@@ -37,6 +60,8 @@ src/inbox_sift/
   github/client.py       GitHubClient protocol, HttpGitHubClient (httpx), ListPage
   github/normalize.py    raw API payload -> Notification
   github/gh_auth.py      host discovery + token via `gh` (injectable Runner)
+  github/enrich.py       timeline/review/check mapping for the detail panel; actor provenance helpers
+  github/avatars.py      AvatarCache: fetch-once disk cache behind /api/avatars/{host}/{login}
   demo/fixtures.py       deterministic fixture generator (1,240 notifications, 713 filtered out)
   demo/details.py        deterministic detail payloads (PR status, events, participants)
   demo/fake_client.py    FakeGitHubClient (protocol impl, failure injection, scenarios)
@@ -185,6 +210,8 @@ class GitHubClient(Protocol):
     async def unsubscribe(self, thread_id: str) -> None      # DELETE /notifications/threads/{id}/subscription
     async def get_detail(self, n: Notification) -> dict      # Detail payload (below); may raise GitHubError
     async def viewer_login(self) -> str                      # GET /user -> login
+    # HttpGitHubClient only (the sync engine checks with getattr, so the fake never enriches):
+    async def enrich_subject(self, n, latest_comment_url) -> tuple[str | None, str]  # (login, 'author'|'last commenter'|'unknown')
     async def aclose(self) -> None
 
 def api_base(host: str) -> str   # 'github.com' -> 'https://api.github.com'; else 'https://{host}/api/v3'
@@ -311,6 +338,7 @@ Requests with an `Origin` that isn't the same host get 403.
 | GET/PUT | /api/settings | partial Settings on PUT (deep-merge `layout`) | Settings |
 | POST | /api/demo/scenario | `{host_problem?, detail_fail?}` (demo only, else 404) | `{ok}` |
 | POST | /api/demo/reset | (demo only) reseed db, clear bulk | `{ok}` |
+| GET | /api/avatars/{host}/{login} | | image bytes from the disk cache, or 404 `{error:'no_avatar'}` (always 404 in demo) |
 
 Static: `/` serves `static/index.html`; `/static/...` serves the rest. Cache-Control `no-cache` for html.
 
