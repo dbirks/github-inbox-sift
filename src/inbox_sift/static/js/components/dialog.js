@@ -25,9 +25,8 @@ export function openDialog({ bar, title, body, confirmLabel, onConfirm, onCancel
   else if (title) { titleEl = title; if (!titleEl.id) titleEl.id = titleId; }
   const labelledBy = titleEl ? titleEl.id : null;
 
-  const bodyEl = h('div', Object.assign({ class: 'dialog-body' }, bodyProps || {}),
-    ...(Array.isArray(body) ? body : [body]).filter(Boolean).map(part =>
-      typeof part === 'string' ? paragraph(part) : part));
+  const contentEls = (Array.isArray(body) ? body : [body]).filter(Boolean).map(part =>
+    typeof part === 'string' ? paragraph(part) : part);
 
   const cancelBtn = h('button', {
     class: 'btn btn-tertiary', type: 'button', testid: 'dialog-cancel',
@@ -47,9 +46,12 @@ export function openDialog({ bar, title, body, confirmLabel, onConfirm, onCancel
     style: { width: width + 'px' },
   },
     bar ? h('div', { class: 'dialog-bar' }, bar) : null,
-    titleEl,
-    bodyEl,
-    h('div', { class: 'dialog-actions' }, cancelBtn, confirmBtn),
+    // Title, paragraphs and actions all sit inside the padded body, as in the prototype (lines 336-343).
+    h('div', Object.assign({ class: 'dialog-body' }, bodyProps || {}),
+      titleEl,
+      ...contentEls,
+      h('div', { class: 'dialog-actions' }, cancelBtn, confirmBtn),
+    ),
   );
 
   const scrim = h('div', {

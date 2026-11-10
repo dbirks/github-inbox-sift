@@ -103,7 +103,7 @@ async def test_preview_warns_about_stale_rows_and_blocked_hosts(env) -> None:
 
     result = env.bulk.preview(ids)
 
-    assert result["stale"] == ghe_total
+    assert result["stale"] == 0  # stale rows on a blocked host are reported as blocked/skipped, not stale
     assert result["blocked"] == {"ghe.corp": ghe_total}
     assert result["total"] == 713  # blocked and stale are annotations, not removals
 
@@ -300,3 +300,11 @@ async def test_unknown_ids_raise_keyerror(env) -> None:
         await env.bulk.run("0" * 32)
     with pytest.raises(KeyError):
         env.bulk.progress("0" * 32)
+
+
+def test_preview_counts_stale_rows_only_on_hosts_it_will_send_to(env) -> None:
+    ids = env.service.resolve_ids("filtered")
+    env.db.mark_stale("github.com", True)  # healthy host whose rows are briefly stale (e.g. mid-recovery)
+    result = env.bulk.preview(ids)
+    assert result["stale"] == result["per_host"]["github.com"]
+    assert "github.com" not in result["blocked"]

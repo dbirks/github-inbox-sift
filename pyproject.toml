@@ -27,6 +27,9 @@ module-name = "inbox_sift"
 [tool.pytest.ini_options]
 testpaths = ["tests/py"]
 asyncio_mode = "auto"
+# Keep temp dirs only for failed tests: /tmp is a small quota-limited tmpfs on dev machines.
+tmp_path_retention_policy = "failed"
+tmp_path_retention_count = 1
 
 [tool.ruff]
 line-length = 110

@@ -57,10 +57,12 @@ class BulkService:
                 continue  # already dismissed or gone; never a target
             resolved.append(n.id)
             per_host[n.host] = per_host.get(n.host, 0) + 1
-            if n.stale:
-                stale += 1
             if self._blocked_status(n.host) is not None:
                 blocked[n.host] = blocked.get(n.host, 0) + 1
+            elif n.stale:
+                # Stale only counts rows we will actually send to; rows on a blocked host are reported as
+                # skipped instead, so the dialog never double-counts them or promises a re-check it won't do.
+                stale += 1
         preview_id = self.db.create_preview(resolved, {"ids_count": len(resolved)})
         return {
             "preview_id": preview_id,

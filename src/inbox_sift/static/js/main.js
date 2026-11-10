@@ -3,7 +3,7 @@
 // Views are imported dynamically so a missing or broken view logs an error instead of blanking the app.
 
 import { createStore, initialState } from './store.js';
-import { createActions } from './actions.js';
+import { createActions, currentId } from './actions.js';
 import { api } from './api.js';
 import { installKeyboard } from './keyboard.js';
 
@@ -57,6 +57,12 @@ async function mountView(name, rootId) {
 }
 
 function renderAll(s) {
+  // One rule instead of a loadDetail() call in every action that can move the current row (select, x, J/K,
+  // Done, filter rules, list refreshes): if the panel is open, its detail must belong to the current row.
+  if (s.panelOpen) {
+    const id = currentId(s);
+    if (id && s.detail.id !== id) actions.loadDetail(id);
+  }
   applyTheme(s);
   applyShell(s);
   for (const v of views) {
