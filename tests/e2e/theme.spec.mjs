@@ -119,8 +119,8 @@ test('dark theme: every CSS token used by the stylesheets and inline styles reso
     }
     for (const el of document.querySelectorAll('[style]')) scan(el.getAttribute('style'));
     const cs = getComputedStyle(document.documentElement);
-    // --src (icon mask URL) and --i/--cols/--rowh/--av/--c1 are per-element layout variables, not theme tokens.
-    const local = new Set(['--src', '--i', '--cols', '--rowh', '--av', '--c1']);
+    // --src (icon mask URL) and --i/--cols/--rowh/--av/--c1/--repo-w/--reason-w/--sbw are per-element layout variables, not theme tokens.
+    const local = new Set(['--src', '--i', '--cols', '--rowh', '--av', '--c1', '--repo-w', '--reason-w', '--sbw']);
     const tokens = [...names].filter(n => !local.has(n));
     return { checked: tokens.length, unresolved: tokens.filter(n => !cs.getPropertyValue(n).trim()) };
   });
