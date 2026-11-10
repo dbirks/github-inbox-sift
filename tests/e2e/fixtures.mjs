@@ -10,7 +10,9 @@ export async function resetDemo(request, scenario = { host_problem: 'expired', d
   await request.put('/api/settings', {
     headers: HDR,
     data: { theme: 'light', density: 'compact', read_on_open: false, poll: 'adaptive', hidden_hosts: [],
-      layout: { navW: 212, drawerW: 360, navCollapsed: false } },
+      // layout is deep-merged server-side (config.merge_settings), so every key must be sent here or the
+      // previous test's widths / sort direction leak into the next one.
+      layout: { navW: 212, drawerW: 360, navCollapsed: false, repoW: 170, reasonW: 104, oldest: false } },
   });
 }
 
