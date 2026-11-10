@@ -65,12 +65,13 @@ class SyncEngine:
     # -- internals -------------------------------------------------------------------------------------
 
     def _ensure(self, host: str) -> None:
-        if host not in self.statuses:
-            self.statuses[host] = HostStatus(host=host)
-            self._failures[host] = 0
-            self._locks[host] = asyncio.Lock()
-            self._wake[host] = asyncio.Event()
-            self._last_sync[host] = 0.0
+        # Fill in each piece separately: the app context may pre-seed `statuses` for hosts gh could not sign in
+        # to (they have no client), and those still need a lock and wake event for check_now().
+        self.statuses.setdefault(host, HostStatus(host=host))
+        self._failures.setdefault(host, 0)
+        self._locks.setdefault(host, asyncio.Lock())
+        self._wake.setdefault(host, asyncio.Event())
+        self._last_sync.setdefault(host, 0.0)
 
     def _status(self, host: str) -> HostStatus:
         self._ensure(host)
@@ -162,6 +163,8 @@ class SyncEngine:
         client = self.clients.get(host)
         async with self._locks[host]:
             if client is None:
+                if not status.healthy:
+                    return status  # e.g. gh sign-in failed at startup: keep 'expired' and its fix command
                 return self._record_failure(host, GitHubError("offline", f"no client for {host}"))
             # 'syncing' only on the very first sync. A routine poll keeps 'ok', and an unhealthy host keeps its
             # error state while retrying, so actions stay blocked until the host actually answers.

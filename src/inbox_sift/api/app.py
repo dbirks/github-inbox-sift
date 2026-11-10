@@ -325,11 +325,7 @@ def create_app(ctx: AppContext) -> FastAPI:
     async def check_host(host: str) -> Response:
         if host not in ctx.sync.statuses:
             return _error(404, "not_found")
-        try:
-            status = await ctx.sync.check_now(host)
-        except KeyError:
-            # A host gh could not authenticate against has no client to poll: report what we already know.
-            status = ctx.sync.statuses[host]
+        status = await ctx.sync.check_now(host)  # never raises; a clientless host just reports its failure
         return status.to_dict()  # type: ignore[return-value]
 
     @app.get("/api/settings")

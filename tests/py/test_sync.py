@@ -397,3 +397,11 @@ async def test_only_the_first_sync_reports_syncing() -> None:
     await asyncio.sleep(0.01)
     assert engine.statuses["github.com"].status == "ok"  # routine polls don't flicker the chip
     await again
+
+
+async def test_check_now_on_a_preseeded_host_without_a_client_reports_instead_of_crashing() -> None:
+    db = _seeded_db()
+    engine = _engine(db, _demo_clients(hosts=("github.com",)))
+    engine.statuses["ghe.corp"] = HostStatus(host="ghe.corp", status="expired", fix_command="gh auth login -h ghe.corp")
+    status = await engine.check_now("ghe.corp")
+    assert status.healthy is False
