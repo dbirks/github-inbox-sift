@@ -34,13 +34,37 @@
 .selection-clear { width: 28px; height: 28px; padding: 0; justify-content: center; }
 
 /* ---- virtualized list ------------------------------------------------------------------------- */
-/* --c1 / --av / --rowh are set inline on the scroller by list.js (density + pick mode). */
+/* --c1 / --av / --rowh / --repo-w / --reason-w are set inline on .listview by list.js (density, pick mode and
+   column widths); the scroller, the header and the rows all inherit them. */
 .list-wrap { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .list-scroller { flex: 1; overflow: auto; min-height: 0; background: var(--surface); }
 .list-spacer { position: relative; }
 
+/* ---- column header (prototype 103–111) --------------------------------------------------------- */
+/* Sits above the scroller (a listbox may only contain options) and repeats the row grid, so the labels land
+   over their columns. --sbw = the scroller's scrollbar width, measured by list.js, keeps the right-hand cells
+   aligned with the rows when the list scrolls. */
+.list-cols { flex-shrink: 0; display: grid; align-items: center; gap: 10px; height: 26px;
+  grid-template-columns: var(--c1, 8px) 16px var(--av, 18px) minmax(72px, var(--repo-w, 170px)) minmax(120px, 1fr) minmax(84px, var(--reason-w, 104px)) 36px;
+  padding: 0 calc(16px + var(--sbw, 0px)) 0 16px; background: var(--surface); border-bottom: 1px solid var(--line);
+  font: 600 10px var(--font-mono); letter-spacing: .04em; color: var(--muted); }
+.col-blank { grid-column: 1 / span 3; }
+.col-cell { position: relative; height: 100%; min-width: 0; display: flex; align-items: center; }
+.col-reason { justify-self: end; }
+
+/* 8px handle straddling the column edge (right:-9px, prototype 105), with the 1x12 tick centred in it. */
+.col-resize { position: absolute; top: 0; right: -9px; z-index: 4; width: 8px; height: 100%; cursor: col-resize;
+  display: flex; justify-content: center; }
+.col-resize:hover, .col-resize.dragging { background: var(--accent-wash); }
+.col-resize .col-tick { width: 1px; height: 12px; margin-top: 7px; background: var(--line-strong); }
+
+/* AGE doubles as the sort toggle: newest first (arrow-down) / oldest first (arrow-up). */
+.sort-age { justify-self: end; display: inline-flex; align-items: center; gap: 2px; border: 0; padding: 0;
+  background: transparent; color: var(--ink2); cursor: pointer; font: 600 10px var(--font-mono); letter-spacing: .04em; }
+.sort-age:hover { color: var(--ink); }
+
 .list-row { position: absolute; left: 0; right: 0; display: grid;
-  grid-template-columns: var(--c1, 8px) 16px var(--av, 18px) minmax(72px, 150px) minmax(120px, 1fr) 104px 36px;
+  grid-template-columns: var(--c1, 8px) 16px var(--av, 18px) minmax(72px, var(--repo-w, 170px)) minmax(120px, 1fr) minmax(84px, var(--reason-w, 104px)) 36px;
   align-items: center; gap: 10px; height: var(--rowh, 32px); padding: 0 16px; border-bottom: 1px solid var(--line-soft);
   cursor: pointer; background: var(--surface); }
 .list-row.wash { background: var(--accent-wash); }

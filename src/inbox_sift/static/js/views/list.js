@@ -2,8 +2,9 @@
  * views/list.js — the middle column: Inbox / Filtered out / All.
  *
  * Contains the view header (title, count, subtitle, search, the Filtered-out Group menu and "Mark all N
- * Done…"), the selection bar, a virtualized fixed-height listbox (viewport + 10 rows of overscan), empty
- * states, the "N new" pill and the bulk Done tray (design-handoff §4–5, prototype lines 62–147).
+ * Done…"), the selection bar, the sticky column header (resizable REPOSITORY / REASON columns + the AGE sort
+ * toggle, prototype lines 103–111), a virtualized fixed-height listbox (viewport + 10 rows of overscan),
+ * empty states, the "N new" pill and the bulk Done tray (design-handoff §4–5, prototype lines 62–147).
  *
  * Render strategy: update() patches small text nodes directly, rebuilds the row model only when its inputs
  * change, and re-paints just the visible slice. Reused DOM nodes are kept when their signature (row data
@@ -20,6 +21,14 @@ const TITLES = { inbox: 'Inbox', filtered: 'Filtered out', all: 'All notificatio
 const ROW_H = { compact: 32, balanced: 52 };
 const AV = { compact: 18, balanced: 28 };
 const OVERSCAN = 10;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// Column widths: prototype line 454-459. The reason handle sits on the TITLE edge, so it drags inversely.
+const COLS = {
+  repo: { key: 'repoW', min: 80, max: 360, label: 'Resize repository column', grows: (start, dx) => start + dx },
+  reason: { key: 'reasonW', min: 84, max: 220, label: 'Resize reason column', grows: (start, dx) => start - dx },
+};
+const COL_STEP = 16; // keyboard arrows in 16px steps (§3 Resizing)
 const GROUP_OPTS = [['none', 'Group: none', 'list'], ['repo', 'Group: repository', 'book'], ['actor', 'Group: actor', 'user']];
 
 function setIcon(el, name) {
@@ -101,7 +110,75 @@ export function mount(root, ctx) {
   const wrap = h('div', { class: 'list-wrap' }, scroller, pill);
   const tray = h('div', { class: 'bulk-tray', testid: 'bulk-tray', hidden: true });
 
-  const container = h('section', { class: 'listview', hidden: true }, header, selBar, wrap, tray);
+  // ---- column header --------------------------------------------------------------------------
+  // Outside the scroller on purpose: a listbox may only contain options, so a header row cannot live inside
+  // it (and it must not scroll with the virtualized rows). Prototype line 103.
+  const sortIcon = icon('arrow-down', 11);
+  const sortBtn = h('button', {
+    class: 'sort-age', testid: 'sort-age', type: 'button', 'aria-pressed': 'false',
+    onclick: () => actions.toggleSort(),
+  }, 'AGE', sortIcon);
+
+  function colHandle(which) {
+    const spec = COLS[which];
+    return h('span', {
+      class: 'col-resize', testid: `resize-col-${which}`,
+      role: 'separator', 'aria-orientation': 'vertical', tabindex: '0',
+      'aria-label': spec.label, 'aria-valuemin': String(spec.min), 'aria-valuemax': String(spec.max),
+      'aria-valuenow': String(ctx.store.get().layout[spec.key]),
+      title: 'Drag to resize · double-click to reset',
+      onmousedown: e => startColDrag(which, e),
+      ondblclick: () => actions.resetLayout(which),
+      onkeydown: e => colArrow(which, e),
+    }, h('span', { class: 'col-tick' }));
+  }
+
+  const repoHandle = colHandle('repo');
+  const reasonHandle = colHandle('reason');
+  const colsHead = h('div', { class: 'list-cols', testid: 'list-columns' },
+    h('span', { class: 'col-blank', 'aria-hidden': 'true' }),
+    h('span', { class: 'col-cell' }, 'REPOSITORY', repoHandle),
+    h('span', { class: 'col-cell' }, 'TITLE', reasonHandle),
+    h('span', { class: 'col-reason' }, 'REASON'),
+    sortBtn);
+
+  /** mousedown → window mousemove/mouseup; the store is patched live, the API only sees the final width (§3). */
+  function startColDrag(which, ev) {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    const spec = COLS[which];
+    const handle = which === 'repo' ? repoHandle : reasonHandle;
+    const x0 = ev.clientX;
+    const start = ctx.store.get().layout[spec.key];
+    document.body.classList.add('col-resizing');
+    handle.classList.add('dragging');
+    const mv = e => actions.setLayout(
+      { [spec.key]: Math.round(clamp(spec.grows(start, e.clientX - x0), spec.min, spec.max)) },
+      { persist: false });
+    const up = () => {
+      window.removeEventListener('mousemove', mv);
+      window.removeEventListener('mouseup', up);
+      document.body.classList.remove('col-resizing');
+      handle.classList.remove('dragging');
+      actions.setLayout(ctx.store.get().layout); // persist the final layout (localStorage + debounced PUT)
+    };
+    window.addEventListener('mousemove', mv);
+    window.addEventListener('mouseup', up);
+  }
+
+  function colArrow(which, ev) {
+    const dir = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : null;
+    if (dir === null) return;
+    ev.preventDefault();
+    const spec = COLS[which];
+    // ArrowRight widens the repo column; on the TITLE edge it narrows reason, so the sign flips (prototype 459).
+    const delta = (which === 'repo' ? dir : -dir) * COL_STEP;
+    actions.setLayout({
+      [spec.key]: Math.round(clamp(ctx.store.get().layout[spec.key] + delta, spec.min, spec.max)),
+    });
+  }
+
+  const container = h('section', { class: 'listview', hidden: true }, header, selBar, colsHead, wrap, tray);
   root.append(container);
 
   // Row model + rendered node cache -------------------------------------------------------------
@@ -296,6 +373,22 @@ export function mount(root, ctx) {
     if (ci >= 0 && (ci < start || ci >= end)) ensureRow(ci, s, rowH, opts);
     // Infinite scroll: near the bottom of the rendered model and the server has more (prototype loads silently).
     if (len && end >= len - 30 && s.list.nextOffset != null && !s.list.loading) actions.loadMore();
+    // Keep the header's right padding equal to the scrollbar the scroller is currently showing.
+    const sbw = (scroller.scrollHeight > scroller.clientHeight + 1 ? scrollbarWidth() : 0) + 'px';
+    if (colsHead.style.getPropertyValue('--sbw') !== sbw) colsHead.style.setProperty('--sbw', sbw);
+  }
+
+  // The header lives outside the scroller, so it has to pad itself by the scroller's scrollbar width to keep
+  // its right-hand cells over the row columns. Classic scrollbars measure ~15px, overlay ones 0.
+  let sbwPx = null;
+  function scrollbarWidth() {
+    if (sbwPx == null) {
+      const probe = h('div', { style: { position: 'absolute', top: '-9999px', left: '-9999px', width: '120px', height: '80px', overflow: 'scroll' } });
+      document.body.append(probe);
+      sbwPx = Math.max(0, probe.offsetWidth - probe.clientWidth);
+      probe.remove();
+    }
+    return sbwPx;
   }
 
   function ensureVisible(id) {
@@ -333,6 +426,28 @@ export function mount(root, ctx) {
     } else if (!want && popover) {
       popover.close();
       popover = null;
+    }
+  }
+
+  // ---- column header sync -----------------------------------------------------------------------
+
+  function renderColumns(s) {
+    const oldest = !!s.layout.oldest;
+    const text = oldest ? 'Oldest first · click for newest first' : 'Newest first · click for oldest first';
+    if (sortBtn.getAttribute('aria-label') !== text) {
+      sortBtn.setAttribute('aria-label', text);
+      sortBtn.title = text;
+    }
+    const pressed = oldest ? 'true' : 'false';
+    if (sortBtn.getAttribute('aria-pressed') !== pressed) sortBtn.setAttribute('aria-pressed', pressed);
+    if (sortIcon.__oldest !== oldest) {
+      sortIcon.__oldest = oldest;
+      setIcon(sortIcon, oldest ? 'arrow-up' : 'arrow-down'); // arrow-up = oldest first (prototype 710)
+    }
+    for (const which of ['repo', 'reason']) {
+      const handle = which === 'repo' ? repoHandle : reasonHandle;
+      const now = String(s.layout[COLS[which].key]);
+      if (handle.getAttribute('aria-valuenow') !== now) handle.setAttribute('aria-valuenow', now);
     }
   }
 
@@ -479,8 +594,16 @@ export function mount(root, ctx) {
     }
 
     const density = state.settings.density === 'balanced' ? 'balanced' : 'compact';
-    const vars = { '--rowh': ROW_H[density] + 'px', '--av': AV[density] + 'px', '--c1': state.picked.size > 0 ? '16px' : '8px' };
-    for (const [k, v] of Object.entries(vars)) if (scroller.style.getPropertyValue(k) !== v) scroller.style.setProperty(k, v);
+    // All grid vars live on the container so the column header and the rows resolve to the same tracks.
+    const vars = {
+      '--rowh': ROW_H[density] + 'px',
+      '--av': AV[density] + 'px',
+      '--c1': state.picked.size > 0 ? '16px' : '8px',
+      '--repo-w': state.layout.repoW + 'px',
+      '--reason-w': state.layout.reasonW + 'px',
+    };
+    for (const [k, v] of Object.entries(vars)) if (container.style.getPropertyValue(k) !== v) container.style.setProperty(k, v);
+    renderColumns(state);
 
     refreshModel(state);
     if (lastPaintView !== state.view) {
