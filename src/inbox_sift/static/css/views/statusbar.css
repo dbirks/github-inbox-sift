@@ -1,0 +1,57 @@
+/* Status bar (design-handoff §2 Status chip, §3 layout row, §8 Sync/offline/errors; prototype lines 310-327).
+   Host popovers are appended to document.body, so their rules are unscoped. */
+
+#statusbar { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 10px; overflow: hidden;
+  border-top: 1px solid var(--line); background: var(--fill); font: 10.5px var(--font-mono); color: var(--muted);
+  white-space: nowrap; }
+
+.status-chips { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* Chips: 20px, 12px icon, state colour from the §2 table (ok / expired / unreachable) plus the §8 wait + run states. */
+.status-chip { display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 0; border-radius: 2px;
+  background: transparent; color: var(--done-fg); font: 400 10.5px var(--font-mono); cursor: pointer; white-space: nowrap; }
+.status-chip:hover { filter: brightness(.96); }
+.status-chip.expired { background: var(--fail-tag); color: var(--fail-fg); font-weight: 600; }
+.status-chip.offline { background: var(--fail-body); color: var(--fail-fg); }
+.status-chip.rate { background: var(--wait-tag); color: var(--wait-fg); }
+.status-chip.syncing { color: var(--run-fg); }
+.status-chip-icon { display: inline-flex; }
+
+.status-poll { min-width: 0; padding-left: 6px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Bulk progress chip: run tag, jumps to Filtered Out where the tray lives (§5). */
+.status-bulk { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border: 0;
+  border-radius: 2px; background: var(--run-tag); color: var(--run-fg); font: 600 10.5px var(--font-mono);
+  cursor: pointer; white-space: nowrap; }
+
+/* Shortcut hint (prototype line 315): ellipsises on narrow windows. */
+.status-help { display: flex; align-items: center; gap: 6px; min-width: 0; flex-shrink: 1; margin-left: auto;
+  border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; overflow: hidden; }
+.status-help:hover { color: var(--ink2); }
+.status-help-text { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.status-help-key { width: 14px; height: 14px; border-radius: 3px; box-shadow: none; }
+
+/* Host popover (prototype lines 317-326). */
+.host-popover { padding-bottom: 0; overflow: hidden; }
+.host-pop-bar { margin-top: 0; }
+.host-pop-bar.done { background: var(--done-tag); color: var(--done-fg); }
+.host-pop-bar.fail { background: var(--fail-tag); color: var(--fail-pfg); }
+.host-pop-bar.wait { background: var(--wait-tag); color: var(--wait-fg); }
+.host-pop-bar.run { background: var(--run-tag); color: var(--run-fg); }
+.host-pop-body { display: flex; flex-direction: column; gap: 8px; padding: 12px; font: 12.5px var(--font-text);
+  white-space: normal; }
+.host-pop-text { text-wrap: pretty; }
+.host-pop-kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font: 11px var(--font-mono); color: var(--muted); }
+.host-pop-kv .v { color: var(--ink); }
+.host-pop-cmd { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line);
+  border-radius: 2px; background: var(--paper); font: 11.5px var(--font-mono); }
+.host-pop-cmd-text { flex: 1; min-width: 0; }
+.host-pop-copy { display: inline-grid; place-items: center; width: 13px; height: 13px; padding: 0; border: 0;
+  background: transparent; color: var(--muted); cursor: pointer; }
+.host-pop-copy.copied { width: auto; height: auto; font: 600 10px var(--font-mono); color: var(--done-fg); white-space: nowrap; }
+
+/* First-run progress: plain 8px bar with a 1px ink border (§8, 17a). */
+.host-pop-progress { height: 8px; border: 1px solid var(--ink); background: var(--surface); overflow: hidden; }
+.host-pop-progress-fill { height: 100%; background: var(--seg-done); }
+.host-pop-actions { display: flex; gap: 8px; }
