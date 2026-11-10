@@ -102,3 +102,28 @@ test('the tab title reads (N) Inbox Sift and drops as attention items are marked
   await expect(page).toHaveTitle(new RegExp(`^\\(${attention - 1}\\) Inbox Sift`));
   await expect.poll(() => page.evaluate(() => window.__inboxSift.store.get().counts.attention)).toBe(attention - 1);
 });
+
+test('dark theme: every CSS token used by the stylesheets and inline styles resolves', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => window.__inboxSift.actions.setSetting('theme', 'dark'));
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.keyboard.press('j'); // panel open: its inline styles join the DOM scan
+  await expect(page.getByTestId('panel-title')).toBeVisible();
+  const { checked, unresolved } = await page.evaluate(() => {
+    const names = new Set();
+    const scan = text => { for (const m of text.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) names.add(m[1]); };
+    for (const sheet of document.styleSheets) {
+      let rules = [];
+      try { rules = [...sheet.cssRules]; } catch { continue; }
+      for (const r of rules) scan(r.cssText);
+    }
+    for (const el of document.querySelectorAll('[style]')) scan(el.getAttribute('style'));
+    const cs = getComputedStyle(document.documentElement);
+    // --src (icon mask URL) and --i/--cols/--rowh/--av/--c1 are per-element layout variables, not theme tokens.
+    const local = new Set(['--src', '--i', '--cols', '--rowh', '--av', '--c1']);
+    const tokens = [...names].filter(n => !local.has(n));
+    return { checked: tokens.length, unresolved: tokens.filter(n => !cs.getPropertyValue(n).trim()) };
+  });
+  expect(checked).toBeGreaterThan(30); // guards against a scan that silently finds nothing
+  expect(unresolved).toEqual([]);
+});
