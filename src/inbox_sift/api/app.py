@@ -235,25 +235,57 @@ def create_app(ctx: AppContext) -> FastAPI:
 
     # -- bulk ----------------------------------------------------------------------------------------------
 
+    def _resolve_ids(body: dict[str, Any]) -> tuple[list[str], dict[str, Any]] | Response:
+        """`{ids}` or `{view, q, hosts}` -> (ids, query). The query form covers rows never loaded in the browser."""
+        ids = body.get("ids")
+        if isinstance(ids, list) and all(isinstance(i, str) for i in ids):
+            return list(ids), {}
+        view = body.get("view", "filtered")
+        if view not in _VIEWS:
+            return _invalid("view", f"must be one of {', '.join(_VIEWS)}")
+        hosts = body.get("hosts")
+        if isinstance(hosts, str):
+            hosts = [part.strip() for part in hosts.split(",") if part.strip()] or None
+        if hosts is not None and not (isinstance(hosts, list) and all(isinstance(h, str) for h in hosts)):
+            return _invalid("hosts", "must be a list of hostnames")
+        q = body.get("q", "") or ""
+        ids = ctx.notifications.resolve_ids(view, q, hosts)  # type: ignore[arg-type]
+        return ids, {"view": view, "q": q, "hosts": hosts}
+
+    @app.post("/api/bulk/read")
+    async def bulk_read(request: Request) -> Response:
+        """Mark a selection read on GitHub. Non-destructive, so no confirm/freeze; unhealthy hosts are skipped."""
+        resolved = _resolve_ids(await _json_body(request))
+        if isinstance(resolved, Response):
+            return resolved
+        ids, _query = resolved
+        sem = asyncio.Semaphore(4)
+        outcome = {"ok": 0, "failed": 0, "skipped": 0}
+        skipped_hosts: set[str] = set()
+
+        async def one(id_: str) -> None:
+            async with sem:
+                try:
+                    await ctx.actions.read(id_)
+                    outcome["ok"] += 1
+                except HostBlocked:
+                    outcome["skipped"] += 1
+                    n = ctx.db.get(id_)
+                    if n is not None:
+                        skipped_hosts.add(n.host)
+                except (GitHubError, KeyError):
+                    outcome["failed"] += 1
+
+        await asyncio.gather(*(one(i) for i in ids))
+        return {**outcome, "skipped_hosts": sorted(skipped_hosts),  # type: ignore[return-value]
+                "counts": ctx.notifications.counts(hosts=None)}
+
     @app.post("/api/bulk/preview")
     async def bulk_preview(request: Request) -> Response:
-        body = await _json_body(request)
-        ids = body.get("ids")
-        query: dict[str, Any] = {}
-        if isinstance(ids, list) and all(isinstance(i, str) for i in ids):
-            ids = list(ids)
-        else:
-            view = body.get("view", "filtered")
-            if view not in _VIEWS:
-                return _invalid("view", f"must be one of {', '.join(_VIEWS)}")
-            hosts = body.get("hosts")
-            if isinstance(hosts, str):
-                hosts = [part.strip() for part in hosts.split(",") if part.strip()] or None
-            if hosts is not None and not (isinstance(hosts, list) and all(isinstance(h, str) for h in hosts)):
-                return _invalid("hosts", "must be a list of hostnames")
-            q = body.get("q", "") or ""
-            ids = ctx.notifications.resolve_ids(view, q, hosts)  # type: ignore[arg-type]
-            query = {"view": view, "q": q, "hosts": hosts}
+        resolved = _resolve_ids(await _json_body(request))
+        if isinstance(resolved, Response):
+            return resolved
+        ids, query = resolved
         preview = ctx.bulk.preview(ids)
         preview_id = preview.get("preview_id") or preview.get("id")
         if isinstance(preview_id, str) and ctx.db.get_preview(preview_id) is None:

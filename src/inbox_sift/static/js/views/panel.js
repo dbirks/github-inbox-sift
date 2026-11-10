@@ -339,7 +339,7 @@ export function mount(root, ctx) {
   }
 
   function moreMenu(item) {
-    return [
+    const items = [
       menuItem({
         icon: item.unread ? 'mail-opened' : 'mail', key: 'r',
         label: item.unread ? 'Mark read' : 'Mark unread',
@@ -350,6 +350,18 @@ export function mount(root, ctx) {
         onSelect: () => { ctx.actions.unsubscribe(item.id); ctx.actions.closeMenus(); },
       }),
     ];
+    // Unhealthy host: actions that would reach GitHub show why they're blocked up front (§8). "Mark unread" is
+    // local-only, so it stays available.
+    const blocked = ctx.actions.isBlocked(item);
+    if (blocked) {
+      const reachesGitHub = item.unread ? items : items.slice(1);
+      for (const el of reachesGitHub) {
+        el.setAttribute('aria-disabled', 'true');
+        el.title = blocked;
+        el.classList.add('is-blocked');
+      }
+    }
+    return items;
   }
 
   return { update };

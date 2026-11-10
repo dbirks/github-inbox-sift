@@ -176,6 +176,7 @@ def doctor(
     paths: Paths,
     *,
     demo: bool = False,
+    demo_host_problem: str = "expired",
     run: Runner = default_runner,
     out: Callable[[str], None] = _echo,
 ) -> int:
@@ -189,7 +190,8 @@ def doctor(
 
     if demo:
         out("gh        skipped (demo mode uses fixture data)")
-        out("hosts     github.com ✓  ghe.corp ✓  (demo)")
+        problem = {"none": "✓", "expired": "×  (demo: sign-in expired)", "offline": "×  (demo: unreachable)"}
+        out(f"hosts     github.com ✓  ghe.corp {problem.get(demo_host_problem, '✓')}")
     else:
         gh_path = shutil.which("gh")
         if gh_path:
@@ -270,7 +272,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     paths = paths_for(args)
 
     if args.command == "doctor":
-        return doctor(paths, demo=args.demo)
+        return doctor(paths, demo=args.demo, demo_host_problem=args.demo_host_problem)
 
     if not is_loopback(args.host) and not args.allow_remote:
         print(

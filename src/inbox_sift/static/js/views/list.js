@@ -156,9 +156,9 @@ export function mount(root, ctx) {
     el.remove();
   }
 
-  function removeNodesOutside(start, end) {
+  function removeNodesOutside(start, end, keep = -1) {
     for (const [i, el] of nodes) {
-      if (i >= start && i < end) continue;
+      if ((i >= start && i < end) || i === keep) continue;
       disposeRow(el);
       nodes.delete(i);
     }
@@ -185,7 +185,7 @@ export function mount(root, ctx) {
     const col1 = hasPicks
       ? h('input', {
         class: 'row-check', type: 'checkbox', testid: `row-check-${item.id}`, checked: picked || undefined,
-        'aria-label': 'Select',
+        'aria-label': 'Select', tabindex: '-1', // the listbox is the single tab stop (§10)
         onclick: e => {
           e.stopPropagation();
           if (e.shiftKey) actions.extendPick(item.id); else actions.togglePick(item.id);
@@ -288,8 +288,12 @@ export function mount(root, ctx) {
     const scrollTop = scroller.scrollTop;
     const start = len ? Math.max(0, Math.floor(scrollTop / rowH) - OVERSCAN) : 0;
     const end = Math.min(len, Math.ceil((scrollTop + scroller.clientHeight) / rowH) + OVERSCAN);
-    removeNodesOutside(start, end);
+    // The current row is always in the DOM, even when scrolled away, so aria-activedescendant never dangles.
+    const cur = currentId(s);
+    const ci = cur != null && indexById.has(cur) ? indexById.get(cur) : -1;
+    removeNodesOutside(start, end, ci);
     for (let i = start; i < end; i++) ensureRow(i, s, rowH, opts);
+    if (ci >= 0 && (ci < start || ci >= end)) ensureRow(ci, s, rowH, opts);
     // Infinite scroll: near the bottom of the rendered model and the server has more (prototype loads silently).
     if (len && end >= len - 30 && s.list.nextOffset != null && !s.list.loading) actions.loadMore();
   }
@@ -350,6 +354,9 @@ export function mount(root, ctx) {
     } else if (s.view === 'filtered') {
       t = 'Nothing is filtered out';
       x = 'Everything your filters caught has been marked Done.';
+    } else if (s.view === 'all') {
+      t = 'Nothing cached yet';
+      x = 'Notifications appear here as your hosts sync.';
     } else {
       t = 'Inbox is clear';
       x = `${fmtCount(s.counts.filtered)} notifications are still in Filtered Out.`;
@@ -372,7 +379,7 @@ export function mount(root, ctx) {
   }
 
   function trayTag(b) {
-    if (b.phase === 'running') return ['tag-run', 'loader-2', 'MARKING DONE'];
+    if (b.phase === 'running') return ['tag-run', 'loader-2', 'RUNNING'];
     if (b.failed_count > 0 && b.phase !== 'stopped') return ['tag-fail', 'circle-x', 'FINISHED WITH FAILURES'];
     if (b.phase === 'stopped') return ['tag-q', null, 'STOPPED'];
     return ['tag-done', 'circle-check', 'COMPLETED'];
@@ -458,12 +465,17 @@ export function mount(root, ctx) {
     const n = pickCount(state);
     selBar.hidden = n === 0;
     if (n > 0) {
-      selCountEl.textContent = `${n} selected`;
+      selCountEl.textContent = `${fmtCount(n)} selected`;
       selectAllBtn.hidden = !!state.pickAll;
       const sal = `Select all ${fmtCount(state.list.total)}`;
       if (selectAllBtn.textContent !== sal) selectAllBtn.textContent = sal;
-      const sdl = `Mark ${n} done`;
+      const sdl = `Mark ${fmtCount(n)} done`;
       if (selDoneLabel.textContent !== sdl) selDoneLabel.textContent = sdl;
+      // Part of the selection on an unhealthy host: say so before the click, not after (§8).
+      const blockedTip = actions.selectionBlockedText();
+      for (const b of [selDoneBtn, selReadBtn]) {
+        if (blockedTip) b.title = blockedTip; else b.removeAttribute('title');
+      }
     }
 
     const density = state.settings.density === 'balanced' ? 'balanced' : 'compact';

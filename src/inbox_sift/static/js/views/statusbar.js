@@ -184,7 +184,11 @@ export function mount(root, ctx) {
   let pop = null; // {pop, host, box, key}
 
   function popContent(host, now) {
-    const spec = popSpec(host, now);
+    let spec = popSpec(host, now);
+    if (spec.tone === 'done' && store.get().settings.poll === 'manual') {
+      // Manual refresh needs a way to refresh: a healthy host offers "Check now" instead of just "Close".
+      spec = { ...spec, body: 'Syncing normally. Refresh is set to manual.', action: 'Check now', check: true };
+    }
     const parts = [
       h('div', { class: `popover-bar host-pop-bar ${spec.tone}` }, spec.bar),
       h('div', { class: 'host-pop-body' },
@@ -201,7 +205,7 @@ export function mount(root, ctx) {
     if (host.fix_command) {
       const cmd = host.fix_command;
       const copyBtn = h('button', {
-        type: 'button', class: 'host-pop-copy', 'aria-label': 'Copy command',
+        type: 'button', class: 'host-pop-copy', 'aria-label': 'Copy command', title: 'Copy command',
         onclick: () => copyCommand(cmd, copyBtn),
       }, icon('copy', 13));
       body.append(h('div', { class: 'host-pop-cmd', testid: 'host-pop-cmd' }, h('span', { class: 'host-pop-cmd-text' }, cmd), copyBtn));

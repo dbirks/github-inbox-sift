@@ -245,12 +245,44 @@ export function createActions(store) {
 
   const findItem = id => get().list.items.find(i => i.id === id) || null;
 
+  /** Distinct unhealthy hosts among these ids. */
+  function blockedHosts(ids) {
+    return [...new Set(ids.map(findItem).filter(i => i && isBlocked(i)).map(i => i.host))];
+  }
+
+  /** The "what to do next" half of an error (§12): sign in again, or wait for the host to come back. */
+  function nextStepFor(hostNames) {
+    return hostNames.map(name => {
+      const h = get().hosts.find(x => x.host === name);
+      if (!h) return '';
+      if (h.status === 'expired') return `Run ${h.fix_command || `gh auth login -h ${name}`}, then check again from the status bar.`;
+      if (h.status === 'rate_limited') return 'It will be retried automatically when GitHub allows.';
+      return `It will be retried automatically when ${name} responds.`;
+    }).filter(Boolean).join(' ');
+  }
+
+  /** Tooltip for selection-bar buttons when part of the selection is on an unhealthy host (§8), else null. */
+  function selectionBlockedText() {
+    const s = get();
+    const items = s.list.items.filter(i => s.picked.has(i.id));
+    const counts = {};
+    for (const i of items) { const t = isBlocked(i); if (t) counts[i.host] = (counts[i.host] || 0) + 1; }
+    const hosts = Object.keys(counts);
+    if (!hosts.length) return null;
+    const all = hosts.reduce((a, h) => a + counts[h], 0) === items.length;
+    return hosts.map(h => `${counts[h]} on ${h} will be skipped: ${isBlocked(items.find(i => i.host === h))}`).join(' ')
+      + (all ? '' : ' The rest will be sent.');
+  }
+
+  /** Toast for a blocked single-item action: the tooltip text plus the next step. */
+  function toastBlocked(item, text) { toast(`${text} ${nextStepFor([item.host])}`); }
+
   async function markDone(id) {
     id = id || currentId(get());
     const item = findItem(id);
     if (!item) return;
     const blocked = isBlocked(item);
-    if (blocked) { toast(blocked); return; }
+    if (blocked) { toastBlocked(item, blocked); return; }
     const s = get();
     const items = s.list.items;
     const idx = items.findIndex(i => i.id === id);
@@ -277,7 +309,7 @@ export function createActions(store) {
   async function setRead(id, read) {
     const item = findItem(id);
     if (!item) return;
-    if (read) { const blocked = isBlocked(item); if (blocked) { toast(blocked); return; } }
+    if (read) { const blocked = isBlocked(item); if (blocked) { toastBlocked(item, blocked); return; } }
     const prev = item.unread;
     patchItem(id, { unread: !read });
     try {
@@ -301,7 +333,7 @@ export function createActions(store) {
     const item = findItem(id);
     if (!item) return;
     const blocked = isBlocked(item);
-    if (blocked) { toast(blocked); return; }
+    if (blocked) { toastBlocked(item, blocked); return; }
     try {
       await api.post(`/api/notifications/${encodeURIComponent(id)}/unsubscribe`);
       toast(`Unsubscribed from ${item.repo} ${item.number}. It stays here until you mark it Done.`, 'info');
@@ -332,25 +364,43 @@ export function createActions(store) {
     }
     const ids = pickedIds(s);
     const items = s.list.items;
-    const rest = items.filter(i => !s.picked.has(i.id));
     const sendable = ids.filter(id => !isBlocked(findItem(id)));
     const blocked = ids.length - sendable.length;
+    // Selection moves to the first row after the last one marked done, or the previous one at the end (§10).
+    const lastIdx = Math.max(...ids.map(id => items.findIndex(i => i.id === id)));
+    const after = items.slice(lastIdx + 1).find(i => !sendable.includes(i.id));
+    const before = items.slice(0, lastIdx).reverse().find(i => !sendable.includes(i.id));
+    const next = after || before || null;
     set({ list: { ...s.list, items: items.filter(i => !sendable.includes(i.id)), total: Math.max(0, s.list.total - sendable.length) },
-      picked: new Set(), pickAll: false, anchor: null, selId: rest[0] ? rest[0].id : null });
-    if (blocked) toast(`${blocked} on an unavailable host were skipped. Nothing was sent for them.`);
+      picked: new Set(), pickAll: false, anchor: null, selId: next ? next.id : null });
+    if (blocked) toast(`${blocked} on an unavailable host were skipped. Nothing was sent for them. ${nextStepFor(blockedHosts(ids))}`);
     const results = await Promise.allSettled(sendable.map(id => api.post(`/api/notifications/${encodeURIComponent(id)}/done`)));
     const failed = results.filter(r => r.status === 'rejected').length;
-    if (failed) { toast(`${failed} could not be marked Done and are unchanged.`); refreshList(); }
+    if (failed) {
+      toast(`${failed} could not be marked Done and are unchanged on GitHub. Select them and try again.`);
+      refreshList();
+    }
     refreshCounts();
   }
 
+  /** Mark read for the selection. "Select all N" sends the query so unloaded rows are included (§11). */
   async function readSelection() {
     const s = get();
-    const ids = pickedIds(s).filter(id => !isBlocked(findItem(id)));
+    const body = s.pickAll ? listParams() : { ids: pickedIds(s) };
+    const ids = s.pickAll ? s.list.items.map(i => i.id) : body.ids;
+    const sendable = new Set(ids.filter(id => !isBlocked(findItem(id))));
     set(st => ({ picked: new Set(), pickAll: false, anchor: null,
-      list: { ...st.list, items: st.list.items.map(i => (ids.includes(i.id) ? { ...i, unread: false } : i)) } }));
-    await Promise.allSettled(ids.map(id => api.post(`/api/notifications/${encodeURIComponent(id)}/read`)));
-    refreshCounts();
+      list: { ...st.list, items: st.list.items.map(i => (sendable.has(i.id) ? { ...i, unread: false } : i)) } }));
+    try {
+      const r = await api.post('/api/bulk/read', body);
+      if (r.counts) set({ counts: r.counts });
+      if (r.skipped) toast(`${r.skipped} on an unavailable host were skipped. Nothing was sent for them. ${nextStepFor(r.skipped_hosts || [])}`);
+      if (r.failed) toast(`${r.failed} could not be marked read and are unchanged. Try again in a moment.`);
+      if (r.skipped || r.failed) refreshList();
+    } catch (e) {
+      toast(errText(e));
+      refreshList();
+    }
   }
 
   // ---- rules ---------------------------------------------------------------------------------
@@ -448,7 +498,12 @@ export function createActions(store) {
     const hidden = new Set(s.hiddenHosts);
     if (hidden.has(host)) hidden.delete(host);
     else {
-      if (s.hosts.filter(h => !hidden.has(h.host)).length <= 1) return; // at least one host stays checked (§3)
+      if (s.hosts.filter(h => !hidden.has(h.host)).length <= 1) {
+        // At least one host stays checked (§3). Touch the store so the picker re-renders and re-ticks the box.
+        set({ hosts: [...s.hosts] });
+        toast('At least one host has to stay shown.', 'info');
+        return;
+      }
       hidden.add(host);
     }
     const hiddenHosts = [...hidden];
@@ -495,7 +550,7 @@ export function createActions(store) {
     boot, refreshList, refreshCounts, refreshHosts, loadMore, syncTick, loadDetail,
     go, setQuery, setGroup, select, openPanel, closePanel, moveSel,
     togglePick, extendPick, extendPickBy, pickAllMatching, clearPicks,
-    isBlocked, markDone, toggleRead, markRead, markUnread, unsubscribe, openOnGitHub,
+    isBlocked, selectionBlockedText, markDone, toggleRead, markRead, markUnread, unsubscribe, openOnGitHub,
     doneSelection, readSelection, setRule,
     startBulkFiltered, confirmBulk, cancelBulk, stopBulk, retryBulk, closeBulk,
     toggleMenu, closeMenus, toggleHelp, setHover, toggleHost, checkHost,

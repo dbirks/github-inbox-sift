@@ -475,3 +475,25 @@ def test_real_context_wires_hosts_and_refuses_demo_routes(tmp_path: Path) -> Non
     checked = api_client.post(f"/api/hosts/{GHES}/check")
     assert checked.status_code == 200 and checked.json()["status"] == "expired"
     context.db.close()
+
+
+def test_bulk_read_by_query_covers_unloaded_rows_and_skips_the_blocked_host(client: TestClient, ctx: AppContext) -> None:
+    unread_before = [n for n in ctx.db.live() if n.unread]
+    r = client.post("/api/bulk/read", json={"view": "all", "q": "", "hosts": None})
+    assert r.status_code == 200
+    body = r.json()
+    ghes_unread = sum(1 for n in unread_before if n.host == GHES)
+    assert body["skipped"] == len([n for n in ctx.db.live() if n.host == GHES])  # expired host: nothing sent
+    assert body["skipped_hosts"] == [GHES] and ghes_unread > 0
+    assert body["failed"] == 0 and body["ok"] == ctx.db.count_by_host()[GITHUB]
+    assert not any(n.unread for n in ctx.db.live([GITHUB]))
+    assert sum(1 for n in ctx.db.live([GHES]) if n.unread) == ghes_unread  # untouched
+    assert "counts" in body
+
+
+def test_bulk_read_by_ids(client: TestClient, ctx: AppContext) -> None:
+    ids = [n.id for n in ctx.db.live([GITHUB]) if n.unread][:3]
+    body = client.post("/api/bulk/read", json={"ids": ids}).json()
+    assert body["ok"] == 3 and body["skipped"] == 0
+    assert all(not ctx.db.get(i).unread for i in ids)
+    assert client.post("/api/bulk/read", json={"view": "nope"}).status_code == 422

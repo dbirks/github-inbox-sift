@@ -174,7 +174,9 @@ def test_doctor_skips_gh_in_demo_mode(tmp_path: Path) -> None:
     code, lines = run_doctor(tmp_path, demo=True, run=noop_runner)
     assert code == 0
     assert "gh        skipped (demo mode uses fixture data)" in lines
-    assert "github.com ✓" in lines[2] and "ghe.corp ✓" in lines[2]
+    assert "github.com ✓" in lines[2] and "ghe.corp ×  (demo: sign-in expired)" in lines[2]  # matches the demo UI
+    _code, healthy = run_doctor(tmp_path, demo=True, demo_host_problem="none", run=noop_runner)
+    assert "ghe.corp ✓" in healthy[2]
 
 
 def test_doctor_reports_an_unwritable_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

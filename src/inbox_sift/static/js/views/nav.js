@@ -66,6 +66,32 @@ function hostLabel(state) {
   return `${on.length} of ${all.length} hosts`;
 }
 
+/**
+ * Swap the <img> mark for the same SVG inline, recoloured with theme tokens (tile = --surface, border = --ink,
+ * pixels = --accent), so the 15g mark follows dark mode. The static file stays the single source; on any
+ * failure the <img> simply stays.
+ */
+async function inlineMark(img) {
+  try {
+    const res = await fetch('/static/brand/mark.svg');
+    if (!res.ok) return;
+    const doc = new DOMParser().parseFromString(await res.text(), 'image/svg+xml');
+    const svg = doc.documentElement;
+    if (svg.nodeName !== 'svg') return;
+    const tile = svg.querySelector(':scope > rect');
+    if (tile) { tile.style.fill = 'var(--surface)'; tile.style.stroke = 'var(--ink)'; }
+    const pixels = svg.querySelector('g');
+    if (pixels) pixels.style.fill = 'var(--accent)';
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('class', 'nav-mark');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.removeAttribute('aria-label');
+    svg.removeAttribute('role');
+    img.replaceWith(document.importNode(svg, true));
+  } catch { /* keep the <img> */ }
+}
+
 export function mount(root, ctx) {
   const actions = ctx.actions;
   const store = ctx.store;
@@ -78,8 +104,10 @@ export function mount(root, ctx) {
     testid: 'nav-toggle',
     onclick: () => actions.toggleNav(),
   }, toggleIcon);
+  const markEl = h('img', { class: 'nav-mark', src: '/static/brand/mark.svg', width: 18, height: 18, alt: '' });
+  inlineMark(markEl);
   const head = h('div', { class: 'nav-head' },
-    h('img', { class: 'nav-mark', src: '/static/brand/mark.svg', width: 18, height: 18, alt: '' }),
+    markEl,
     h('span', { class: 'nav-word' },
       h('span', { class: 'nav-title' }, 'Inbox Sift'),
       h('span', { class: 'nav-sub' }, 'for GitHub')),
@@ -94,6 +122,7 @@ export function mount(root, ctx) {
       class: 'nav-item',
       testid: `nav-item-${def.view}`,
       title: def.label,
+      'aria-label': def.label, // the collapsed rail hides the visible label
       onclick: () => actions.go(def.view),
     }, icon(def.icon, 15), h('span', { class: 'nav-label' }, def.label), countEl);
     return { el, countEl, def };
