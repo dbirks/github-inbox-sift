@@ -135,6 +135,9 @@ class SyncEngine:
             pending = self._actors_to_refresh(items, page.items) if enrich is not None else []
             upserted += self.db.upsert_notifications(items)
             status.sync_done = upserted
+            if status.status == "syncing" and page.last_page:
+                # First-run estimate for the status chip ("syncing 1,240 / ~2,940"); exact once the sync ends.
+                status.sync_total = max(upserted, page.last_page * 50)
             if pending and budget > 0:
                 budget = await self._enrich_actors(enrich, pending, sem, budget)
             page_number = page.next_page

@@ -37,6 +37,8 @@ from .errors import GitHubError
 _HOST_RE = re.compile(r"[A-Za-z0-9.-]+(:\d+)?")
 _THREAD_ID_RE = re.compile(r"^\d+$")
 _LINK_PART_RE = re.compile(r'<([^>]+)>;\s*rel="next"')
+_LINK_LAST_RE = re.compile(r'<([^>]+)>;\s*rel="last"')
+_LINK_LAST_RE = re.compile(r'<([^>]+)>;\s*rel="last"')
 
 # '/repos/{owner}/{repo}/{pulls|issues|releases}/{number}'; anything else is not a thread we can enrich.
 _SUBJECT_PATH_RE = re.compile(r"^/repos/(?P<repo>[^/]+/[^/]+)/(?P<kind>[a-z_]+)/(?P<number>\d+)/?$")
@@ -68,6 +70,7 @@ class ListPage:
     rate_remaining: int | None
     rate_limit: int | None
     next_page: int | None
+    last_page: int | None = None  # Link rel="last": lets the first sync show "syncing 1,240 / ~2,940"
 
 
 @runtime_checkable
@@ -123,6 +126,19 @@ def _reset_delay(resp: httpx.Response) -> int | None:
     if reset is None:
         return None
     return max(1, reset - int(time.time()))
+
+
+def _last_page(link_header: str | None) -> int | None:
+    """Page number of Link rel="last" (absent on the last page itself)."""
+    if not link_header:
+        return None
+    for part in link_header.split(","):
+        m = _LINK_LAST_RE.search(part)
+        if m:
+            page = parse_qs(urlsplit(m.group(1)).query).get("page")
+            if page and page[0].isdigit():
+                return int(page[0])
+    return None
 
 
 def _next_page(link_header: str | None) -> int | None:
@@ -251,7 +267,8 @@ class HttpGitHubClient:
         data = self._json(resp)
         if not isinstance(data, list):
             raise GitHubError("malformed", "notifications response was not a JSON list", status=resp.status_code)
-        return ListPage(items=data, not_modified=False, next_page=_next_page(resp.headers.get("Link")), **base)
+        link = resp.headers.get("Link")
+        return ListPage(items=data, not_modified=False, next_page=_next_page(link), last_page=_last_page(link), **base)
 
     @staticmethod
     def _check_thread_id(thread_id: str) -> str:

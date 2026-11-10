@@ -405,3 +405,23 @@ async def test_check_now_on_a_preseeded_host_without_a_client_reports_instead_of
     engine.statuses["ghe.corp"] = HostStatus(host="ghe.corp", status="expired", fix_command="gh auth login -h ghe.corp")
     status = await engine.check_now("ghe.corp")
     assert status.healthy is False
+
+
+async def test_first_sync_estimates_the_total_from_link_last_then_settles_on_the_exact_count() -> None:
+    seen: list[tuple[str, int | None, int | None]] = []
+
+    class _LastPageClient(_PagedClient):
+        async def list_notifications(self, **kwargs) -> ListPage:
+            status = engine.statuses["github.com"]
+            seen.append((status.status, status.sync_done, status.sync_total))  # what the chip showed before this page
+            page = await super().list_notifications(**kwargs)
+            page.last_page = 3
+            return page
+
+    pages = [([_raw("501", "one"), _raw("502", "two")], 2), ([_raw("503", "three")], None)]
+    db = Database(":memory:")
+    engine = _engine(db, {"github.com": _LastPageClient(pages)})
+    status = await engine.sync_host("github.com")
+
+    assert seen[1] == ("syncing", 2, 150)  # mid-sync: 2 stored, ~3 pages x 50 estimated
+    assert (status.status, status.sync_done, status.sync_total) == ("ok", 3, 3)

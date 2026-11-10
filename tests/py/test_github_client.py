@@ -399,3 +399,13 @@ async def test_token_never_in_repr_or_errors() -> None:
 def test_client_satisfies_protocol() -> None:
     client = HttpGitHubClient("github.com", TOKEN)
     assert isinstance(client, GitHubClient)
+
+
+def test_link_rel_last_is_parsed_for_the_first_sync_estimate() -> None:
+    from inbox_sift.github.client import _last_page
+
+    link = ('<https://api.github.com/notifications?page=2>; rel="next", '
+            '<https://api.github.com/notifications?page=59>; rel="last"')
+    assert _last_page(link) == 59
+    assert _last_page('<https://api.github.com/notifications?page=2>; rel="next"') is None
+    assert _last_page(None) is None
