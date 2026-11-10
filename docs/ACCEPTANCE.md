@@ -36,6 +36,17 @@ Every bullet of `design/design-handoff.md` §13, mapped to the committed Playwri
 | Focus is visible everywhere | `a11y.spec.mjs` › focus is visible on buttons |
 | Dialogs trap focus and restore it on close | `a11y.spec.mjs` › the bulk dialog traps focus and gives it back to Mark all |
 
+## Latest prototype: list columns
+
+| Behaviour | Spec › test |
+|---|---|
+| Header labels (REPOSITORY · TITLE · REASON · AGE) sit over their columns; the header lives outside the `role="listbox"` scroller | `columns.spec.mjs` › the header labels sit over their columns |
+| Repo column (`resize-col-repo`) resizes by drag, double-click resets `repoW` to 170px, the width persists across reload | `columns.spec.mjs` › the repository column resizes by drag, resets on double-click, and persists |
+| Reason column grows when its handle is dragged left, clamped to 84–220px | `columns.spec.mjs` › the reason column grows when its handle is dragged left, within 84–220px |
+| Handles (`resize-col-repo` / `resize-col-reason`) are keyboard separators (`role=separator`, ArrowLeft/Right ±16px, `aria-valuenow`) | `columns.spec.mjs` › column handles are keyboard-operable separators |
+| AGE (`sort-age`) toggles newest/oldest first server-side, the unread attention block stays on top, the choice persists | `columns.spec.mjs` › AGE toggles newest/oldest first server-side, keeps the attention block on top, and persists |
+| 924px viewport with the panel open: repo column ≥ 72px, nothing clips | `columns.spec.mjs` › at 924px with the panel open the resizable columns still fit |
+
 Beyond §13, the suite also covers the single-tab-stop listbox, Esc precedence, search and empty states, view
 shortcuts, Done moving the selection, infinite scroll, label collapse, filter rules moving rows, PR status and its
 failure isolation, why-sentence tooltips, offline/healthy host scenarios, the host picker's last-host rule,

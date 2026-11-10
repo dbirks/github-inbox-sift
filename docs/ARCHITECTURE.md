@@ -165,12 +165,13 @@ and hidden_by) or (" Hidden by your {hidden_by} filter." if hidden_by) — match
 class NotificationService:
     def __init__(self, db: Database)
     def query(self, view: View, q: str = '', hosts: list[str] | None = None, group: GroupBy = 'none',
-              offset: int = 0, limit: int = 200) -> dict
+              offset: int = 0, limit: int = 200, sort: Sort = 'newest') -> dict
         # -> {items: [item_dict], total, offset, next_offset (int|None), groups: [{key, count}] (only when group != none)}
     def item(self, id: str) -> dict | None
     def counts(self, hosts: list[str] | None = None) -> dict
         # -> {inbox, filtered, all, attention, kept_hidden}
-    def resolve_ids(self, view: View, q: str = '', hosts: list[str] | None = None) -> list[str]
+    def resolve_ids(self, view: View, q: str = '', hosts: list[str] | None = None,
+                    sort: Sort = 'newest') -> list[str]
     def repos(self, hosts=None) -> dict   # {items: [{name, host, count, shown}], total, shown}  sorted by name
     def people(self, hosts=None) -> dict  # {items: [{login, is_bot, roles: [..], count, shown}], total, shown} count desc
 ```
@@ -178,8 +179,8 @@ class NotificationService:
 `item_dict` = `Notification.to_dict()` + `always`, `hidden_by`, `why`.
 - View membership: inbox = `cls.in_inbox`, filtered = `cls.in_filtered`, all = every live row.
 - `q`: case-insensitive substring over `title + ' ' + repo + ' ' + (actor or '') + ' ' + reason`.
-- Inbox ordering: unread-and-always first, then the rest; each block `updated_at` DESC. Other views: `updated_at` DESC.
-- `group` (filtered view only; ignored otherwise): sort by (key, updated_at DESC); key = repo or actor ('unknown' if None).
+- Ordering: `sort='newest'` (default) is `updated_at` DESC, `sort='oldest'` ASC (`Sort` lives in `models.py`). Inbox ordering: unread-and-always first, then the rest; each block follows the chosen direction. Other views: the chosen direction throughout.
+- `group` (filtered view only; ignored otherwise): sort by key, keeping the age order within each group; key = repo or actor ('unknown' if None).
 - `attention` = inbox items that are `always and unread` (drives tab title). `kept_hidden` = inbox items `always and hidden_by`.
 - Counts always come from the full set; `total` equals `len(resolve_ids(...))` for the same arguments.
 
@@ -321,14 +322,15 @@ Requests with an `Origin` that isn't the same host get 403.
 | Method | Path | Body / query | Response |
 |---|---|---|---|
 | GET | /api/meta | | `{version, demo, you: {host: login}, now}` |
-| GET | /api/notifications | `view, q, hosts (csv), group, offset, limit` | `NotificationService.query` |
+| GET | /api/notifications | `view, q, hosts (csv), group, offset, limit, sort (newest\|oldest, default newest)` | `NotificationService.query` |
 | GET | /api/notifications/{id} | | item_dict or 404 |
 | GET | /api/notifications/{id}/detail | | Detail, or 502 `{error:'detail_failed', message}` |
 | POST | /api/notifications/{id}/{done,read,unread,unsubscribe} | | `{ok: true, counts}`; 409 `{error:'host_blocked', message}`; 502 `{error:'github', message}` |
 | GET | /api/counts | `hosts` | counts |
 | POST | /api/rules | `{kind, value, action: 'exclude'\|'include'}` | `{ok, counts}` |
 | GET | /api/repos, /api/people | `hosts` | service output |
-| POST | /api/bulk/preview | `{view, q, hosts}` or `{ids}` | preview |
+| POST | /api/bulk/preview | `{view, q, hosts, sort}` or `{ids}` | preview |
+| POST | /api/bulk/read | `{view, q, hosts, sort}` or `{ids}` | `{ok, failed, skipped, skipped_hosts, counts}` |
 | POST | /api/bulk/run | `{preview_id}` | `{operation_id}` |
 | GET | /api/bulk/active | | `{operations: [progress]}` |
 | GET | /api/bulk/{op} | | progress |
@@ -386,7 +388,7 @@ slices they use against the last render and return early). Views never call `fet
   hosts: [], hiddenHosts: [],    // hosts: /api/hosts items
   pollHint: 60,
   settings: { theme: 'system', density: 'compact', read_on_open: false, poll: 'adaptive' },
-  layout: { navW: 212, drawerW: 360, navCollapsed: false },
+  layout: { navW: 212, drawerW: 360, navCollapsed: false, repoW: 170, reasonW: 104, oldest: false },
   bulk: null,                    // progress object from /api/bulk/*
   bulkConfirm: null,             // preview object while the dialog is open: {preview_id,total,per_host,stale,blocked, source:'filtered'|'picked'}
   openMenu: null,                // 'host'|'group'|'filter'|'more'|'hostStatus:<host>'|null
@@ -411,7 +413,8 @@ startBulkFiltered()             confirmBulk()            cancelBulk()
 stopBulk()  retryBulk()  closeBulk()
 toggleMenu(name)                closeMenus()             toggleHelp()
 setHover(id|null)               toggleHost(host)         checkHost(host)
-setSetting(key, value)          setLayout(patch, {persist=true})   resetLayout('nav'|'drawer')
+setSetting(key, value)          setLayout(patch, {persist=true})   resetLayout('nav'|'drawer'|'repo'|'reason')
+toggleSort()                    // AGE header: newest <-> oldest, server-side, refreshes the list
 setRepoQ(q) setPeopleQ(q)       loadRepos() loadPeople()  retryDetail()
 isBlocked(item) -> string|null  // blocked tooltip text when the item's host is unhealthy
 ```
@@ -423,7 +426,8 @@ app-shell, nav, nav-item-<view>, nav-count-<view>, nav-toggle, host-picker, host
 resize-nav, resize-drawer,
 list-header, list-title, list-count, search, group-button, group-menu, group-opt-<none|repo|actor>, bulk-mark-all,
 selection-bar, selection-count, select-all, selection-done, selection-read, selection-clear,
-list (role=listbox), row-<id>, row-check-<id>, row-done-<id>, row-read-<id>, row-open-<id>, group-head-<key>,
+list (role=listbox), list-columns, resize-col-repo, resize-col-reason, sort-age,
+row-<id>, row-check-<id>, row-done-<id>, row-read-<id>, row-open-<id>, group-head-<key>,
 empty-state, new-pill,
 bulk-tray, bulk-tray-title, bulk-retry, bulk-stop, bulk-close, bulk-bar,
 dialog, dialog-confirm, dialog-cancel,
