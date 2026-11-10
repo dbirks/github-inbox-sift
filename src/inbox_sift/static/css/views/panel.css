@@ -1,0 +1,71 @@
+/* Detail panel view (§6): eyebrow, title, meta, action row, tags, filtered-out note, PR status, activity,
+   participants — plus the resize handle on the panel's LEFT edge.
+   #panel itself is the positioned box; .panel-scroller holds the 16px padding and the scroll so the handle stays put. */
+
+#panel { position: relative; overflow: visible; background: var(--surface); border-left: 1px solid var(--ink); }
+.panel-scroller { height: 100%; overflow: auto; padding: 16px; }
+/* Children must never shrink (§6): one column, min-height 100%, flex-shrink 0 on the wrapper. */
+.panel-col { display: flex; flex-direction: column; gap: 14px; flex-shrink: 0; min-height: 100%; }
+
+/* Resize handle: same primitive as the nav, mirrored to the left edge (layout.css puts it on the right). */
+.panel-resize { left: -4px; right: auto; }
+
+/* 1. Eyebrow row. */
+.panel-eyebrow { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.panel-kind { flex: 1; min-width: 0; font: 600 10px var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+.panel-close { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; color: var(--ink); flex-shrink: 0; }
+
+/* 2-3. Title and meta. */
+.panel-title { font-size: 17px; font-weight: 700; line-height: 1.3; text-wrap: pretty; }
+.panel-meta { font: 400 11px var(--font-mono); color: var(--muted); }
+
+/* 4. Action row: one line that never wraps, even at 280px. */
+.panel-actions { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.btn-tight { padding: 0 7px; }        /* icon-only labels collapse to the prototype's 7px padding */
+.is-blocked { opacity: .5; }          /* Done on an unavailable host: still clickable, and it toasts (§8) */
+
+/* 5. Tags. */
+.panel-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.panel-reason-tag { cursor: help; }
+
+/* 6. Filtered-out note (q family). */
+.panel-hidden-note { border: 1px solid var(--q-edge); border-radius: 3px; overflow: hidden; }
+.panel-note-bar { display: flex; align-items: center; gap: 6px; background: var(--fill); color: var(--q-pfg);
+  font: 600 10px var(--font-mono); letter-spacing: .04em; padding: 5px 8px; }
+.panel-note-body { background: var(--q-body); color: var(--q-pfg); padding: 8px; font-size: 12.5px; }
+
+/* 7. Status (PRs only): Mono labels left, values right. */
+.panel-status, .panel-activity, .panel-participants { display: flex; flex-direction: column; gap: 8px; }
+.panel-status-grid { display: grid; grid-template-columns: 62px 1fr; gap: 6px 10px; font-size: 12px; align-items: center; }
+.panel-label { font: 600 10px var(--font-mono); letter-spacing: .04em; color: var(--muted); }
+.panel-diff { font: 400 12px var(--font-mono); }
+.panel-diff .add { color: var(--done-fg); }
+.panel-diff .del { color: var(--fail-fg); }
+.panel-checks { display: flex; gap: 4px; flex-wrap: wrap; }
+.panel-merge-ready { color: var(--done-fg); }
+.panel-merge-blocked, .panel-merge-changes_requested { color: var(--wait-fg); }
+.panel-merge-waiting { color: var(--ink2); }
+.panel-status-error { font-size: 12.5px; color: var(--muted); }
+
+/* Inline retry (no modal): the section that failed says so and offers the way out (§8, §12). */
+.panel-retry { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; text-decoration: underline;
+  cursor: pointer; }
+.panel-retry:hover { color: var(--accent-text); }
+
+/* 8. Activity timeline: the 1px rail sits left of the text, avatars hang off it. */
+.panel-timeline { display: flex; flex-direction: column; gap: 10px; border-left: 1px solid var(--line);
+  margin-left: 10px; padding-left: 14px; }
+.panel-event { display: flex; gap: 8px; margin-left: -26px; font-size: 12px; }
+.panel-event-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.panel-event-age { font: 400 11px var(--font-mono); color: var(--muted); }
+.panel-event-snippet { color: var(--ink2); text-wrap: pretty; }
+.panel-muted { font-size: 12.5px; color: var(--muted); }
+.panel-more-link { font-size: 12px; color: var(--accent-text); text-decoration: none; }
+.panel-more-link:hover { text-decoration: underline; }
+
+/* 9. Participants: pill chips, 22px avatar, bold login, muted role. */
+.panel-people { display: flex; gap: 6px; flex-wrap: wrap; }
+.panel-person { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 8px 3px 3px;
+  border: 1px solid var(--line); border-radius: 999px; min-width: 0; }
+.panel-person-name { font-weight: 600; }
+.panel-person-role { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
