@@ -181,6 +181,15 @@ class BulkService:
             "failure_summary": summary,
         }
 
+    async def cancel_all(self) -> None:
+        """Hard-stop every background run (demo reset only): nothing may keep marking reseeded rows Done."""
+        tasks = list(self._tasks.values())
+        self._tasks.clear()
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
     async def stop(self, op_id: str) -> dict:
         """Ask for a halt: in-flight requests finish, nothing new is sent."""
         self._stop_requested.add(op_id)

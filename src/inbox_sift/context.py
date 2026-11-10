@@ -176,6 +176,7 @@ async def reset_demo(ctx: AppContext) -> None:
     """Back to the seeded state: fresh notifications, default rules, no bulk history, no injected failures yet."""
     if not ctx.demo:
         raise ValueError("reset_demo requires a demo context")
+    await ctx.bulk.cancel_all()  # a running op would otherwise keep marking the reseeded rows Done
     ctx.db.clear_notifications()
     ctx.db.clear_bulk()
     current = ctx.db.rules()

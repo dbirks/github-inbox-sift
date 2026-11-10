@@ -11,6 +11,7 @@ Two flavours of client:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
@@ -497,3 +498,20 @@ def test_bulk_read_by_ids(client: TestClient, ctx: AppContext) -> None:
     assert body["ok"] == 3 and body["skipped"] == 0
     assert all(not ctx.db.get(i).unread for i in ids)
     assert client.post("/api/bulk/read", json={"view": "nope"}).status_code == 422
+
+
+async def test_demo_reset_cancels_a_running_bulk_op_and_clears_cached_details(ctx: AppContext) -> None:
+    from inbox_sift.context import reset_demo
+
+    ctx.demo_scenario.latency_s = 0.05  # slow enough that the op is still running when we reset
+    ids = ctx.notifications.resolve_ids("filtered")
+    preview = ctx.bulk.preview(ids)
+    op = await ctx.bulk.run(preview["preview_id"])
+    first = ids[0]
+    ctx.db.put_detail(first, {"cached": True})
+    await asyncio.sleep(0.1)
+    await reset_demo(ctx)
+    await asyncio.sleep(0.2)  # a leaked task would keep marking rows Done here
+    assert ctx.notifications.counts()["filtered"] == 713
+    assert ctx.db.get_detail(first) is None
+    assert op not in ctx.bulk._tasks

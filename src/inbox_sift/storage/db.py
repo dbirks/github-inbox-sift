@@ -360,7 +360,11 @@ class Database:
     # -- housekeeping (used by demo reset) -----------------------------------------------------------------------
 
     def clear_notifications(self) -> None:
-        self._exec("DELETE FROM notifications")
+        """Drop every cached notification and its cached detail payload."""
+        with self._lock:
+            self._conn.execute("DELETE FROM notifications")
+            self._conn.execute("DELETE FROM detail_cache")
+            self._conn.commit()
 
     def clear_bulk(self) -> None:
         with self._lock:
