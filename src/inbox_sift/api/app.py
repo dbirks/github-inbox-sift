@@ -35,6 +35,7 @@ STATIC_DIR = Path(str(files("inbox_sift") / "static"))
 
 _VIEWS: tuple[str, ...] = ("inbox", "filtered", "all")
 _GROUPS: tuple[str, ...] = ("none", "repo", "actor")
+_SORTS: tuple[str, ...] = ("newest", "oldest")
 _RULE_KINDS = ("repo", "actor")
 _RULE_ACTIONS = ("exclude", "include")
 _HOST_PROBLEMS = ("none", "expired", "offline")
@@ -154,7 +155,8 @@ def create_app(ctx: AppContext) -> FastAPI:
         group = _enum_param(request, "group", _GROUPS, "none")
         limit = _int_param(request, "limit", 200, 1, 1000)
         offset = _int_param(request, "offset", 0, 0, 1_000_000)
-        bad = next((p for p in (view, group, limit, offset) if isinstance(p, JSONResponse)), None)
+        sort = _enum_param(request, "sort", _SORTS, "newest")
+        bad = next((p for p in (view, group, limit, offset, sort) if isinstance(p, JSONResponse)), None)
         if bad is not None:
             return bad
         return ctx.notifications.query(
@@ -164,6 +166,7 @@ def create_app(ctx: AppContext) -> FastAPI:
             group=group,  # type: ignore[arg-type]
             offset=offset,  # type: ignore[arg-type]
             limit=limit,  # type: ignore[arg-type]
+            sort=sort,  # type: ignore[arg-type]
         )
 
     @app.get("/api/counts")
@@ -249,7 +252,8 @@ def create_app(ctx: AppContext) -> FastAPI:
         if hosts is not None and not (isinstance(hosts, list) and all(isinstance(h, str) for h in hosts)):
             return _invalid("hosts", "must be a list of hostnames")
         q = body.get("q", "") or ""
-        ids = ctx.notifications.resolve_ids(view, q, hosts)  # type: ignore[arg-type]
+        sort = body.get("sort", "newest") if body.get("sort") in _SORTS else "newest"
+        ids = ctx.notifications.resolve_ids(view, q, hosts, sort)  # type: ignore[arg-type]
         return ids, {"view": view, "q": q, "hosts": hosts}
 
     @app.post("/api/bulk/read")

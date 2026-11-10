@@ -374,13 +374,13 @@ def test_settings_round_trip_and_deep_layout_merge(client: TestClient, ctx: AppC
         "density": "compact",
         "read_on_open": False,
         "poll": "adaptive",
-        "layout": {"navW": 212, "drawerW": 360, "navCollapsed": False},
+        "layout": {"navW": 212, "drawerW": 360, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False},
         "hidden_hosts": [],
     }
     first = client.put("/api/settings", json={"density": "balanced", "layout": {"navW": 260}}).json()
-    assert first["density"] == "balanced" and first["layout"] == {"navW": 260, "drawerW": 360, "navCollapsed": False}
+    assert first["density"] == "balanced" and first["layout"] == {"navW": 260, "drawerW": 360, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False}
     second = client.put("/api/settings", json={"layout": {"drawerW": 420}}).json()
-    assert second["layout"] == {"navW": 260, "drawerW": 420, "navCollapsed": False}
+    assert second["layout"] == {"navW": 260, "drawerW": 420, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False}
     assert second["density"] == "balanced"  # PUT is partial
     assert load_settings(ctx.paths.settings_path).layout["navW"] == 260  # saved, not just in memory
     # out-of-range values are clamped rather than trusted
@@ -522,3 +522,11 @@ def test_demo_scenario_latency_is_validated_and_applied(client: TestClient, ctx:
     assert ctx.demo_scenario.latency_s == 0.2
     assert client.post("/api/demo/scenario", json={"latency_s": 5}).status_code == 422
     assert client.post("/api/demo/scenario", json={"latency_s": "fast"}).status_code == 422
+
+
+def test_notifications_sort_param(client: TestClient) -> None:
+    newest = client.get("/api/notifications", params={"view": "filtered", "limit": 1000}).json()["items"]
+    oldest = client.get("/api/notifications", params={"view": "filtered", "limit": 1000, "sort": "oldest"}).json()["items"]
+    assert [i["updated_at"] for i in oldest] == sorted(i["updated_at"] for i in newest)
+    assert {i["id"] for i in oldest} == {i["id"] for i in newest}
+    assert client.get("/api/notifications", params={"sort": "sideways"}).status_code == 422

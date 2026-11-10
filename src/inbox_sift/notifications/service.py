@@ -8,7 +8,7 @@ lives in ``filters.classify``; this module only filters, orders, slices and aggr
 from __future__ import annotations
 
 from ..filters.classify import Rules, classify
-from ..models import Classification, GroupBy, Notification, View, is_bot
+from ..models import Classification, GroupBy, Notification, Sort, View, is_bot
 from ..storage.db import Database
 
 UNKNOWN_KEY = "unknown"
@@ -60,9 +60,11 @@ class NotificationService:
         rows: list[tuple[Notification, Classification]],
         view: View,
         group: GroupBy,
+        sort: Sort = "newest",
     ) -> list[tuple[Notification, Classification]]:
-        """Grouped (filtered view) sorts by key then newest; the inbox pins attention-worthy items first."""
-        by_age = sorted(rows, key=lambda pair: pair[0].updated_at, reverse=True)
+        """Age order (newest or oldest first), then: grouped (filtered view) sorts by key keeping that age order
+        within each group; the inbox keeps unread always-gets-through items on top, each block in age order."""
+        by_age = sorted(rows, key=lambda pair: pair[0].updated_at, reverse=(sort != "oldest"))
         if view == "filtered" and group in ("repo", "actor"):
             return sorted(by_age, key=lambda pair: self._group_key(pair[0], group))  # stable: age order kept
         if view == "inbox":
@@ -85,9 +87,10 @@ class NotificationService:
         group: GroupBy = "none",
         offset: int = 0,
         limit: int = 200,
+        sort: Sort = "newest",
     ) -> dict:
         rules = self.db.rules()
-        rows = self._order(self._select(view, q, hosts, rules), view, group)
+        rows = self._order(self._select(view, q, hosts, rules), view, group, sort)
         total = len(rows)
         page = rows[offset : offset + limit]
         next_offset = offset + limit
@@ -122,10 +125,12 @@ class NotificationService:
             "kept_hidden": sum(1 for n, cls in rows if cls.in_inbox and cls.always and cls.hidden_by),
         }
 
-    def resolve_ids(self, view: View, q: str = "", hosts: list[str] | None = None) -> list[str]:
+    def resolve_ids(
+        self, view: View, q: str = "", hosts: list[str] | None = None, sort: Sort = "newest"
+    ) -> list[str]:
         """Every id the given view/search matches, in list order — what 'select all' bulk actions target."""
         rules = self.db.rules()
-        return [n.id for n, _cls in self._order(self._select(view, q, hosts, rules), view, "none")]
+        return [n.id for n, _cls in self._order(self._select(view, q, hosts, rules), view, "none", sort)]
 
     def repos(self, hosts: list[str] | None = None) -> dict:
         rules = self.db.rules()

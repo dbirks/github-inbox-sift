@@ -12,6 +12,7 @@ from typing import Literal
 
 View = Literal["inbox", "filtered", "all"]
 GroupBy = Literal["none", "repo", "actor"]
+Sort = Literal["newest", "oldest"]  # list age order (the AGE column header toggles it)
 Kind = Literal["pr", "issue", "deploy", "release", "discussion", "commit", "other"]
 HostState = Literal["ok", "syncing", "expired", "offline", "rate_limited"]
 
@@ -110,7 +111,10 @@ class Settings:
     density: Literal["compact", "balanced"] = "compact"
     read_on_open: bool = False
     poll: Literal["adaptive", "5m", "manual"] = "adaptive"
-    layout: dict = field(default_factory=lambda: {"navW": 212, "drawerW": 360, "navCollapsed": False})
+    layout: dict = field(default_factory=lambda: {
+        "navW": 212, "drawerW": 360, "navCollapsed": False,
+        "repoW": 170, "reasonW": 104, "oldest": False,  # list column widths and AGE sort direction
+    })
     hidden_hosts: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:

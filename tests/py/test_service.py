@@ -316,3 +316,21 @@ def test_service_reflects_new_rows(service, db, make_notif):
     assert service.query("inbox")["items"][0]["id"] == fresh.id
     assert service.counts()["all"] == 9
     assert service.people()["total"] == 6
+
+
+def test_sort_oldest_reverses_age_order_but_keeps_the_inbox_attention_block_on_top(db, make_notif) -> None:
+    from inbox_sift.notifications.service import NotificationService
+
+    db.upsert_notifications([
+        make_notif(thread_id="1", reason="mention", unread=True, updated_at="2026-11-09T10:00:00Z"),
+        make_notif(thread_id="2", reason="mention", unread=True, updated_at="2026-11-09T12:00:00Z"),
+        make_notif(thread_id="3", reason="subscribed", unread=True, updated_at="2026-11-09T09:00:00Z"),
+        make_notif(thread_id="4", reason="subscribed", unread=True, updated_at="2026-11-09T13:00:00Z"),
+    ])
+    svc = NotificationService(db)
+    newest = [i["thread_id"] for i in svc.query("inbox")["items"]]
+    oldest = [i["thread_id"] for i in svc.query("inbox", sort="oldest")["items"]]
+    assert newest == ["2", "1", "4", "3"]
+    assert oldest == ["1", "2", "3", "4"]  # attention block still first, each block oldest-first
+    assert [i["thread_id"] for i in svc.query("all", sort="oldest")["items"]] == ["3", "1", "2", "4"]
+    assert svc.resolve_ids("all", sort="oldest") == [i["id"] for i in svc.query("all", sort="oldest")["items"]]

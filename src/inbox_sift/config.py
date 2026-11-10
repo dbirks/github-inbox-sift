@@ -23,8 +23,8 @@ _THEMES = ("light", "dark", "system")
 _DENSITIES = ("compact", "balanced")
 _POLLS = ("adaptive", "5m", "manual")
 # key -> (min, max); anything outside is clamped, anything non-integer falls back to the default.
-_LAYOUT_LIMITS = {"navW": (160, 340), "drawerW": (280, 720)}
-_LAYOUT_DEFAULTS = {"navW": 212, "drawerW": 360, "navCollapsed": False}
+_LAYOUT_LIMITS = {"navW": (160, 340), "drawerW": (280, 720), "repoW": (80, 360), "reasonW": (84, 220)}
+_LAYOUT_DEFAULTS = {"navW": 212, "drawerW": 360, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False}
 
 
 @dataclass
@@ -81,8 +81,9 @@ def _clean_layout(value: object) -> dict:
             continue
         low, high = limits
         layout[key] = max(low, min(high, raw))
-    if "navCollapsed" in value:
-        layout["navCollapsed"] = _clean_bool(value["navCollapsed"], layout["navCollapsed"])
+    for flag in ("navCollapsed", "oldest"):
+        if flag in value:
+            layout[flag] = _clean_bool(value[flag], layout[flag])
     return layout
 
 

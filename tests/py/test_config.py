@@ -50,14 +50,14 @@ def test_missing_file_gives_defaults(base: Path) -> None:
     s = config.load_settings(config.default_paths(base).settings_path)
     assert s == Settings()
     assert (s.theme, s.density, s.read_on_open, s.poll) == ("system", "compact", False, "adaptive")
-    assert s.layout == {"navW": 212, "drawerW": 360, "navCollapsed": False}
+    assert s.layout == {"navW": 212, "drawerW": 360, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False}
     assert s.hidden_hosts == []
 
 
 def test_round_trip(base: Path) -> None:
     path = config.default_paths(base).settings_path
     original = Settings(theme="dark", density="balanced", read_on_open=True, poll="5m",
-                        layout={"navW": 250, "drawerW": 420, "navCollapsed": True},
+                        layout={"navW": 250, "drawerW": 420, "navCollapsed": True, "repoW": 170, "reasonW": 104, "oldest": False},
                         hidden_hosts=["ghe.corp"])
     config.save_settings(path, original)
     assert path.is_file()
@@ -79,7 +79,7 @@ def test_unknown_keys_are_ignored(base: Path) -> None:
     assert s.density == "compact"
 
 
-DEFAULT_LAYOUT = {"navW": 212, "drawerW": 360, "navCollapsed": False}
+DEFAULT_LAYOUT = {"navW": 212, "drawerW": 360, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False}
 
 
 @pytest.mark.parametrize(
@@ -119,17 +119,17 @@ def test_layout_is_clamped(base: Path, nav_w: int, drawer_w: int, expected: tupl
     s = config.load_settings(path)
     assert (s.layout["navW"], s.layout["drawerW"]) == expected
     assert s.layout["navCollapsed"] is True
-    assert set(s.layout) == {"navW", "drawerW", "navCollapsed"}
+    assert set(s.layout) == {"navW", "drawerW", "navCollapsed", "repoW", "reasonW", "oldest"}
 
 
 # -- merge ---------------------------------------------------------------
 
 
 def test_merge_is_shallow_but_deep_for_layout() -> None:
-    s = Settings(theme="light", layout={"navW": 212, "drawerW": 360, "navCollapsed": False})
+    s = Settings(theme="light", layout={"navW": 212, "drawerW": 360, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False})
     out = config.merge_settings(s, {"theme": "dark", "layout": {"drawerW": 500}})
     assert out.theme == "dark"
-    assert out.layout == {"navW": 212, "drawerW": 500, "navCollapsed": False}
+    assert out.layout == {"navW": 212, "drawerW": 500, "navCollapsed": False, "repoW": 170, "reasonW": 104, "oldest": False}
     # the original object is untouched
     assert s.layout["drawerW"] == 360
 
@@ -139,7 +139,7 @@ def test_merge_validates_and_clamps() -> None:
     out = config.merge_settings(s, {"theme": "neon", "poll": "5m", "layout": {"navW": 4000, "navCollapsed": 1}})
     assert out.theme == "system"
     assert out.poll == "5m"
-    assert out.layout == {"navW": 340, "drawerW": 360, "navCollapsed": True}
+    assert out.layout == {"navW": 340, "drawerW": 360, "navCollapsed": True, "repoW": 170, "reasonW": 104, "oldest": False}
 
 
 def test_merge_ignores_unknown_keys() -> None:
@@ -150,3 +150,16 @@ def test_merge_ignores_unknown_keys() -> None:
 def test_merge_empty_patch_is_a_copy() -> None:
     s = Settings(theme="dark", hidden_hosts=["ghe.corp"])
     assert config.merge_settings(s, {}) == s
+
+
+def test_layout_column_widths_and_sort_are_clamped_and_round_trip(tmp_path) -> None:
+    from inbox_sift.config import load_settings, merge_settings, save_settings
+    from inbox_sift.models import Settings
+
+    s = merge_settings(Settings(), {"layout": {"repoW": 9999, "reasonW": 10, "oldest": True}})
+    assert (s.layout["repoW"], s.layout["reasonW"], s.layout["oldest"]) == (360, 84, True)
+    assert s.layout["navW"] == 212  # untouched keys keep their defaults
+    path = tmp_path / "settings.toml"
+    save_settings(path, s)
+    assert load_settings(path).layout == s.layout
+    assert Settings().layout["repoW"] == 170 and Settings().layout["reasonW"] == 104
