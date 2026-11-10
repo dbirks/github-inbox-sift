@@ -7,7 +7,8 @@
 //
 // The scroller is a child of #panel so the resize handle can sit on the panel's left edge without scrolling with it.
 
-import { clear, fmtAge, h, icon, kindInfo, reasonTag, isBot, render, same } from '../dom.js';
+import { clear, fmtAge, h, icon, kindInfo, reasonTag, render, same } from '../dom.js';
+import { avatar } from '../components/avatar.js';
 import { currentItem } from '../actions.js';
 import { menuItem, openPopover } from '../components/popover.js';
 import { attachTooltip } from '../components/tooltip.js';
@@ -16,9 +17,6 @@ const DRAWER_MIN = 280;   // §3: the panel never narrows past this
 const DRAWER_MAX = 720;   // ... and never wider than 60% of the viewport
 const STEP = 16;          // arrow-key nudge on the separator
 const MAX_EVENTS = 5;     // §6.8: about five events, the rest is a link to GitHub
-
-// Same pastel set as the prototype (line 512); bots are flat grey.
-const PALETTE = ['#dfe4fa', '#d9f0de', '#ffecc2', '#fde3d6', '#d9eefa', '#f3c4b9', '#cfe8f7', '#fbe7b4'];
 
 export function mount(root, ctx) {
   const handle = h('div', {
@@ -127,7 +125,7 @@ export function mount(root, ctx) {
       hiddenNote(item),
       item.kind === 'pr' ? statusSection(detail) : null,
       activitySection(item, detail),
-      participantsSection(detail),
+      participantsSection(item, detail),
     );
   }
 
@@ -243,7 +241,7 @@ export function mount(root, ctx) {
       ? (detail.data ? `SINCE YOU LAST READ · ${events.length} ${events.length === 1 ? 'EVENT' : 'EVENTS'}` : 'SINCE YOU LAST READ')
       : 'RECENT ACTIVITY';
 
-    const rows = events.slice(0, MAX_EVENTS).map(eventRow);
+    const rows = events.slice(0, MAX_EVENTS).map(ev => eventRow(ev, item.host));
     if (detail.error) {
       rows.push(h('div', { class: 'panel-muted' }, "Couldn't load activity · ", retryButton('Retry')));
     } else if (!detail.data) {
@@ -259,27 +257,27 @@ export function mount(root, ctx) {
       rows.length ? h('div', { class: 'panel-timeline' }, rows) : null);
   }
 
-  function eventRow(ev) {
+  function eventRow(ev, host) {
     return h('div', { class: 'panel-event' },
-      avatarEl(ev.actor, 22),
+      avatar({ login: ev.actor, host, size: 22 }),
       h('div', { class: 'panel-event-body' },
         h('span', null, h('strong', null, ev.actor || 'unknown'), ` ${ev.action || ''} `,
           h('span', { class: 'panel-event-age' }, fmtAge(ev.at))),
         ev.snippet ? h('span', { class: 'panel-event-snippet' }, ev.snippet) : null));
   }
 
-  function participantsSection(detail) {
+  function participantsSection(item, detail) {
     const people = detail.data ? detail.data.participants || [] : [];
     return h('div', { class: 'panel-participants', testid: 'panel-participants' },
       h('div', { class: 'eyebrow' }, 'PARTICIPANTS'),
-      people.length ? h('div', { class: 'panel-people' }, people.map(personPill)) : null);
+      people.length ? h('div', { class: 'panel-people' }, people.map(p => personPill(p, item.host))) : null);
   }
 
   /** The role is whatever the detail payload says — an unknown actor reads "role unknown", never a guess (§6.9). */
-  function personPill(p) {
+  function personPill(p, host) {
     const role = p.role || 'role unknown';
     return h('div', { class: 'panel-person', title: role },
-      avatarEl(p.login, 22, p.is_you ? 'you' : ''),
+      avatar({ login: p.login, host, size: 22, isYou: !!p.is_you }),
       h('span', { class: 'panel-person-name' }, p.login),
       h('span', { class: 'panel-person-role' }, role));
   }
@@ -355,31 +353,4 @@ export function mount(root, ctx) {
   }
 
   return { update };
-}
-
-// ---- avatars ---------------------------------------------------------------------------------
-
-/** Initials on a deterministic pastel (prototype lines 512-516); `you` keeps the accent chip from base.css. */
-function avatarEl(login, size, extra = '') {
-  const bot = isBot(login);
-  const you = extra.includes('you');
-  return h('span', {
-    class: 'avatar' + (bot ? ' bot' : '') + (extra ? ' ' + extra : ''),
-    'aria-hidden': 'true',
-    style: { width: size + 'px', height: size + 'px', background: you ? null : bot ? '#d8d4ca' : pastel(login) },
-  }, initials(login));
-}
-
-function pastel(login) {
-  const s = String(login || '');
-  let hash = 0;
-  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.codePointAt(i)) % PALETTE.length;
-  return PALETTE[hash];
-}
-
-function initials(login) {
-  const base = String(login || '').replace(/\[bot\]$|-bot$/, '');
-  if (!base) return '?';
-  const second = base.split(/[-_]/)[1];
-  return (base[0] + (second ? second[0] : base[1] || '')).toUpperCase();
 }

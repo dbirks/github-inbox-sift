@@ -20,7 +20,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: `uv run inbox-sift --demo --no-browser --port ${PORT} --data-dir .e2e-data`,
+    command: `uv run inbox-sift --demo --no-browser --port ${PORT} --data-dir .e2e-data/${PORT}`,
     url: `http://127.0.0.1:${PORT}/api/meta`,
     reuseExistingServer: false,
     timeout: 60_000,

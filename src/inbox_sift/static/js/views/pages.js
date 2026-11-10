@@ -12,12 +12,9 @@
  */
 
 import { h, icon, render, fmtAge, fmtCount, isBot } from '../dom.js';
+import { avatar, pastel } from '../components/avatar.js';
 
 const PAGE_VIEWS = ['repos', 'people', 'settings'];
-
-// Deterministic avatar pastels, same table as list.js (prototype line 511); bots get a fixed grey.
-const PAL = ['#dfe4fa', '#d9f0de', '#ffecc2', '#fde3d6', '#d9eefa', '#f3c4b9', '#cfe8f7', '#fbe7b4'];
-const BOT_BG = '#d8d4ca';
 
 const REPO_SUB = 'Uncheck a repository to send its notifications to Filtered Out. Your GitHub subscriptions are not changed.';
 const PEOPLE_SUB = 'Roles show what each person did on your threads, taken from GitHub data. When the actor is unknown we say so and don\u2019t guess.';
@@ -39,23 +36,6 @@ const SAMPLE_ROWS = [
   { repo: 'corp/billing', title: 'production is waiting for your approval', actor: 'github-actions[bot]', host: 'ghe.corp', ageText: '41m' },
   { repo: 'acme/web', title: 'Dark mode tokens drift on settings page', actor: 'ssato', host: 'github.com', ageText: '3h' },
 ];
-
-function avatarBg(login) {
-  if (!login) return PAL[0];
-  if (isBot(login)) return BOT_BG;
-  let hash = 0;
-  for (let i = 0; i < login.length; i++) hash = (hash * 31 + login.charCodeAt(i)) | 0;
-  return PAL[Math.abs(hash) % PAL.length];
-}
-
-/** Initials like the prototype (line 516): first letter + first letter after a dash/underscore, else second. */
-function initials(login) {
-  if (!login) return '?';
-  const b = login.replace(/\[bot\]|-bot$/, '');
-  if (!b) return '?';
-  const second = b.split(/[-_]/)[1] ? b.split(/[-_]/)[1][0] : b[1];
-  return (b[0] + (second || '')).toUpperCase();
-}
 
 /** Page header: h1 + "N of M in Inbox" + subtitle + filter field. Returns { el, input, count }. */
 function pageHeader(title, sub, placeholder, onInput) {
@@ -278,14 +258,14 @@ export function mount(root, ctx) {
         class: 'page-check', type: 'checkbox', checked: shown,
         onchange: e => toggleRow(personPending, 'actor', p.login, e.target.checked, row, body, renderPeople),
       });
-      const avatar = h('span', {
-        class: 'avatar person-av' + (bot ? ' bot' : ''),
-        style: { background: avatarBg(p.login) },
-      }, initials(p.login));
+      // People rows have no host in the payload, so the component stays on initials; `person-av` is this page's
+      // larger 10px type and 5px bot radius on top of the shared .avatar primitive.
+      const avatarEl = avatar({ login: p.login, host: p.host, size: 28, faded: !shown });
+      avatarEl.classList.add('person-av');
       const row = h('label', {
         class: 'person-row' + (shown ? '' : ' is-hidden'), testid: `person-row-${p.login}`,
       },
-        box, avatar,
+        box, avatarEl,
         h('span', { class: 'person-name' },
           h('span', { class: 'page-name-txt' }, p.login),
           bot ? h('span', { class: 'bot-badge' }, 'BOT') : null),
@@ -312,7 +292,7 @@ export function mount(root, ctx) {
         }))
         : SAMPLE_ROWS;
       render(preview, ...rows.map(r => h('div', { class: 'dens-row' },
-        h('span', { class: 'dens-av', style: { background: avatarBg(r.actor) } }),
+        h('span', { class: 'dens-av', style: { background: pastel(r.actor) } }),
         h('div', { class: 'dens-main' },
           h('div', { class: 'dens-line1' },
             h('span', { class: 'dens-repo' }, r.repo), h('span', { class: 'dens-title' }, r.title)),

@@ -145,12 +145,14 @@ class NotificationService:
         for n in self.db.live(hosts):
             if n.actor is None:
                 continue
-            entry = agg.setdefault(n.actor, {"login": n.actor, "roles": set(), "count": 0})
+            # `host` = where we first saw this login (live rows are newest first); used to fetch their avatar.
+            entry = agg.setdefault(n.actor, {"login": n.actor, "roles": set(), "count": 0, "host": n.host})
             entry["count"] += 1
             entry["roles"].add(n.actor_role)
         items = [
             {
                 "login": login,
+                "host": entry["host"],
                 "is_bot": is_bot(login),
                 "roles": sorted(entry["roles"]),
                 "count": entry["count"],

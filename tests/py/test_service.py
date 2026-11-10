@@ -302,7 +302,7 @@ def test_people_rollup(service):
     ]
     assert result["total"] == 5 and result["shown"] == 3  # both bots are filtered out
     mlee = result["items"][0]
-    assert mlee == {"login": "mlee", "is_bot": False, "roles": ["author", "commenter"], "count": 2, "shown": True}
+    assert mlee == {"login": "mlee", "host": "github.com", "is_bot": False, "roles": ["author", "commenter"], "count": 2, "shown": True}
     bot = result["items"][1]
     assert bot["is_bot"] is True and bot["shown"] is False and bot["roles"] == ["workflow"]
     assert all(i["login"] != "None" for i in result["items"])  # actor None is skipped

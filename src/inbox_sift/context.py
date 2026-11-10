@@ -19,6 +19,7 @@ from .config import Paths, default_paths, load_settings, merge_settings, save_se
 from .demo import fixtures
 from .demo.fake_client import DEMO_VIEWER, DemoScenario, DemoStore, FakeGitHubClient
 from .github import gh_auth
+from .github.avatars import AvatarCache
 from .github.client import GitHubClient, HttpGitHubClient
 from .github.gh_auth import Runner, default_runner
 from .models import HostStatus, Settings
@@ -49,6 +50,9 @@ class AppContext:
     settings: Settings
     # Discovered `gh` logins, real mode only; the CLI uses them for the launch banner and doctor output.
     host_logins: list[gh_auth.HostLogin] = field(default_factory=list)
+    # Real mode only: on-disk avatar cache. None in demo, where /api/avatars/* deliberately 404s so the UI
+    # falls back to initials without the demo ever reaching the network.
+    avatars: AvatarCache | None = None
 
     def save_settings(self) -> None:
         save_settings(self.paths.settings_path, self.settings)
@@ -124,10 +128,13 @@ def build_real_context(paths: Paths | None = None, run: Runner = default_runner)
     paths.ensure()
     logins = gh_auth.discover_hosts(run)
     clients: dict[str, GitHubClient] = {}
+    tokens: dict[str, str] = {}
     broken: dict[str, HostStatus] = {}
     for entry in logins:
         if entry.ok:
-            clients[entry.host] = HttpGitHubClient(entry.host, gh_auth.get_token(entry.host, run))
+            token = gh_auth.get_token(entry.host, run)
+            tokens[entry.host] = token
+            clients[entry.host] = HttpGitHubClient(entry.host, token)
             continue
         fix = entry.fix_command or f"gh auth login -h {entry.host}"
         broken[entry.host] = HostStatus(
@@ -160,6 +167,7 @@ def build_real_context(paths: Paths | None = None, run: Runner = default_runner)
         you=you,
         settings=settings,
         host_logins=logins,
+        avatars=AvatarCache(paths.cache_dir, tokens),
     )
     return ctx
 

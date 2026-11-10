@@ -363,6 +363,22 @@ def create_app(ctx: AppContext) -> FastAPI:
         await reset_demo(ctx)
         return {"ok": True}
 
+    # -- avatars --------------------------------------------------------------------------------------------
+
+    @app.get("/api/avatars/{host}/{login}")
+    async def get_avatar(host: str, login: str) -> Response:
+        """The only image origin the CSP allows (§2 Avatar): GitHub's avatar, cached on disk. Demo has no cache."""
+        result: tuple[bytes, str] | None = None
+        if ctx.avatars is not None:
+            try:
+                result = await ctx.avatars.get(host, login)
+            except ValueError:  # a host api_base rejects is just "no avatar", never a 500
+                result = None
+        if result is None:
+            return _error(404, "no_avatar")
+        content, media_type = result
+        return Response(content, media_type=media_type, headers={"Cache-Control": "private, max-age=86400"})
+
     # -- frontend -------------------------------------------------------------------------------------------
 
     @app.get("/", include_in_schema=False)

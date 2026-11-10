@@ -10,7 +10,8 @@
  * identity, picked/current/hover state, density, pick mode) is unchanged, so 1,240 rows scroll smoothly.
  */
 
-import { h, icon, render, fmtAge, fmtCount, reasonTag, kindInfo, isBot, same } from '../dom.js';
+import { h, icon, render, fmtAge, fmtCount, reasonTag, kindInfo, same } from '../dom.js';
+import { avatar } from '../components/avatar.js';
 import { openPopover, menuItem } from '../components/popover.js';
 import { attachTooltip } from '../components/tooltip.js';
 import { LIST_VIEWS, currentId, pickCount } from '../actions.js';
@@ -19,30 +20,10 @@ const TITLES = { inbox: 'Inbox', filtered: 'Filtered out', all: 'All notificatio
 const ROW_H = { compact: 32, balanced: 52 };
 const AV = { compact: 18, balanced: 28 };
 const OVERSCAN = 10;
-// Deterministic avatar pastels (prototype line 511); bots get a fixed grey.
-const PAL = ['#dfe4fa', '#d9f0de', '#ffecc2', '#fde3d6', '#d9eefa', '#f3c4b9', '#cfe8f7', '#fbe7b4'];
-const BOT_BG = '#d8d4ca';
 const GROUP_OPTS = [['none', 'Group: none', 'list'], ['repo', 'Group: repository', 'book'], ['actor', 'Group: actor', 'user']];
 
 function setIcon(el, name) {
   el.style.setProperty('--src', `url(/static/icons/${name}.svg)`);
-}
-
-function avatarBg(login) {
-  if (!login) return PAL[0];
-  if (isBot(login)) return BOT_BG;
-  let hash = 0;
-  for (let i = 0; i < login.length; i++) hash = (hash * 31 + login.charCodeAt(i)) | 0;
-  return PAL[Math.abs(hash) % PAL.length];
-}
-
-/** Initials like the prototype (line 516): first letter + first letter of the dash/underscore split, else second. */
-function initials(login) {
-  if (!login) return '?';
-  const b = login.replace(/\[bot\]|-bot$/, '');
-  if (!b) return '?';
-  const second = b.split(/[-_]/)[1] ? b.split(/[-_]/)[1][0] : b[1];
-  return (b[0] + (second || '')).toUpperCase();
 }
 
 function subtitle(state) {
@@ -213,10 +194,7 @@ export function mount(root, ctx) {
       })
       : h('span', { class: 'row-dot', style: { opacity: item.unread ? '1' : '0' } });
 
-    const avatar = h('span', {
-      class: 'avatar' + (isBot(item.actor) ? ' bot' : ''),
-      style: { width: av + 'px', height: av + 'px', background: avatarBg(item.actor) },
-    }, initials(item.actor));
+    const avatarEl = avatar({ login: item.actor, host: item.host, size: av });
 
     const titleBlock = h('div', { class: 'row-title-wrap' },
       h('span', { class: 'row-title' + (item.unread ? ' unread' : ''), title: item.title }, item.title),
@@ -260,7 +238,7 @@ export function mount(root, ctx) {
       id: `row-${item.id}`, testid: `row-${item.id}`, role: 'option', 'aria-selected': picked ? 'true' : 'false',
       onclick: e => rowClick(e, item.id),
       onmouseenter: () => actions.setHover(item.id),
-    }, col1, h('span', { class: 'row-kind' }, icon(kindInfo(item.kind)[0], 15)), avatar,
+    }, col1, h('span', { class: 'row-kind' }, icon(kindInfo(item.kind)[0], 15)), avatarEl,
       h('span', { class: 'row-repo', title: item.repo }, item.repo), titleBlock, ...tail);
     // The leave handler skips rows we removed ourselves: rebuilding a hovered row (hover is part of the row
     // signature) must not immediately clear the hover state and cause a flicker loop.
