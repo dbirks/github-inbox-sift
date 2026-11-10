@@ -1,0 +1,97 @@
+/* List view (Inbox / Filtered out / All): header, selection bar, virtualized rows, bulk tray.
+   Values mirror design-handoff §4–5 and the prototype's inline styles (lines 62–147).
+   Shared primitives (.btn*, .tag*, .field, .keycap, .avatar, .icon) come from base.css. */
+
+.listview { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+
+/* ---- header (prototype 63–90) ---------------------------------------------------------------- */
+.list-header { padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+.list-header-top { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.list-headings { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 240px; }
+.list-title-row { display: flex; align-items: baseline; gap: 10px; }
+.list-title { margin: 0; font-size: 19px; font-weight: 700; }
+.list-count { font: 600 13px var(--font-mono); color: var(--muted); }
+.list-sub { font-size: 12.5px; color: var(--muted); text-wrap: pretty; }
+.list-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.group-anchor { position: relative; }
+
+/* Fixed 178px so the header never shifts when the label changes (§4). */
+.group-button { width: 178px; }
+.group-button .label { flex: 1; min-width: 0; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Group menu: check sits right of the label; the current row is washed and semibold (prototype 78). */
+.menu-item .group-check { color: var(--accent-text); visibility: hidden; }
+.menu-item.is-current { background: var(--accent-wash); font-weight: 600; }
+.menu-item.is-current .group-check { visibility: visible; }
+
+/* ---- selection bar (prototype 91–101) --------------------------------------------------------- */
+.selection-bar { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 16px; flex-wrap: wrap;
+  background: var(--ink); color: var(--surface); }
+.selection-bar strong { font-size: 13px; }
+.select-all-btn { border: 0; background: transparent; color: inherit; font: 600 12px var(--font-text);
+  text-decoration: underline; cursor: pointer; opacity: .85; }
+.selection-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.selection-clear { width: 28px; height: 28px; padding: 0; justify-content: center; }
+
+/* ---- virtualized list ------------------------------------------------------------------------- */
+/* --c1 / --av / --rowh are set inline on the scroller by list.js (density + pick mode). */
+.list-wrap { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.list-scroller { flex: 1; overflow: auto; min-height: 0; background: var(--surface); }
+.list-spacer { position: relative; }
+
+.list-row { position: absolute; left: 0; right: 0; display: grid;
+  grid-template-columns: var(--c1, 8px) 16px var(--av, 18px) minmax(72px, 150px) minmax(120px, 1fr) 104px 36px;
+  align-items: center; gap: 10px; height: var(--rowh, 32px); padding: 0 16px; border-bottom: 1px solid var(--line-soft);
+  cursor: pointer; background: var(--surface); }
+.list-row.wash { background: var(--accent-wash); }
+.list-row:hover { background: var(--accent-wash); }
+/* The current row keeps the accent bar even when the panel (and the wash) is gone (§4 Selected). */
+.list-row.current { box-shadow: inset 2px 0 0 var(--accent); }
+
+.row-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-text); }
+.row-check { width: 14px; height: 14px; accent-color: var(--accent); margin: 0; cursor: pointer; }
+.row-kind { color: var(--muted); }
+.row-repo { font: 11px var(--font-mono); color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row-title-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row-title { font-size: 12.5px; font-weight: 400; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row-title.unread { font-weight: 600; }
+.row-meta { font: 11px var(--font-mono); color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row-tag { justify-self: end; }
+.row-age { font: 11px var(--font-mono); color: var(--muted); text-align: right; }
+/* Hover replaces tag+age with three 24px buttons spanning both columns (§4 Hover). */
+.row-hover-tools { grid-column: 6 / span 2; justify-self: end; display: flex; gap: 4px; }
+
+/* Group header: same height as a row so the fixed-height virtualization math holds. */
+.list-group-head { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 8px;
+  height: var(--rowh, 32px); padding: 0 16px; background: var(--fill); border-bottom: 1px solid var(--line);
+  font: 600 10.5px var(--font-mono); letter-spacing: .03em; color: var(--ink2); overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis; }
+.list-group-head .head-icon { color: var(--muted); }
+.list-group-head .head-count { color: var(--muted); }
+
+/* "N new" pill: floats over the top centre of the list; clicking refreshes and jumps to the top. */
+.new-pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--accent-ring);
+  background: var(--accent-wash); color: var(--accent-text); font: 600 11px var(--font-mono);
+  border-radius: 999px; padding: 3px 10px; box-shadow: 2px 2px 0 var(--accent-ring); }
+.new-pill .pill-arrow { transform: rotate(180deg); }
+
+/* Empty state (prototype 126–132). */
+.empty-state { padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.empty-state .empty-icon { color: var(--muted); }
+.empty-title { font-size: 15px; }
+.empty-sub { font-size: 12.5px; color: var(--muted); max-width: 360px; }
+
+/* ---- bulk tray (prototype 134–147, §5.3) ------------------------------------------------------- */
+/* Docked below the list: the list keeps flex:1 above it, so it stays scrollable while the tray runs. */
+.bulk-tray { border-top: 1px solid var(--ink); background: var(--surface); padding: 10px 16px;
+  display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.bulk-tray-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bulk-tray-title { font-size: 13px; }
+.bulk-fail { font: 11.5px var(--font-mono); color: var(--fail-fg); }
+.bulk-skipped { font: 11.5px var(--font-mono); color: var(--muted); }
+.bulk-actions { margin-left: auto; display: flex; gap: 8px; }
+.bulk-bar { height: 8px; border: 1px solid var(--ink); border-radius: 2px; overflow: hidden; display: flex;
+  background: var(--surface); }
+.bulk-seg-ok { background: var(--seg-done); }
+.bulk-seg-fail { background: var(--fail-strong); }
