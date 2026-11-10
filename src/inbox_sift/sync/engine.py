@@ -19,7 +19,7 @@ from typing import Any
 from ..github.client import GitHubClient, ListPage
 from ..github.errors import GitHubError
 from ..github.normalize import normalize
-from ..models import HostStatus, Settings, iso, utcnow
+from ..models import ALWAYS_REASONS, HostStatus, Notification, Settings, iso, utcnow
 from ..storage.db import Database
 
 # Poll pacing. Failures back off exponentially with jitter and cap out at 15 minutes so a dead GHES host
@@ -31,6 +31,33 @@ _FIXED_5M_S = 300
 # A manual "check now" does its own sync; a loop parked on the wake event must not poll the same host twice
 # for one click.
 _MANUAL_COALESCE_S = 1.0
+
+# Enrichment pacing (implementation-handoff discovery item 4): enrich what matters first, never burst an N+1
+# fan-out at the API. Four subjects at a time, at most sixty per sync pass; whatever does not fit is picked
+# up by the next pass because its stored actor is still unknown.
+_ENRICH_CONCURRENCY = 4
+_ENRICH_BUDGET = 60
+
+
+def _latest_comment_url(raw: dict) -> str | None:
+    """`subject.latest_comment_url`, straight from the API dict — it is not a Notification column."""
+    if not isinstance(raw, dict):
+        return None
+    subject = raw.get("subject")
+    if not isinstance(subject, dict):
+        return None
+    url = subject.get("latest_comment_url")
+    return url if isinstance(url, str) and url else None
+
+
+def _enrich_priority(pair: tuple[Notification, str | None]) -> tuple[int, str]:
+    """Sort key: a signal you asked for (mention/review/approval) or anything unread comes first, then newest.
+
+    `reverse=True` turns the flag into "urgent first" and `updated_at` into "newest first" — a plain ISO
+    timestamp compares correctly.
+    """
+    n = pair[0]
+    return (1 if (n.reason in ALWAYS_REASONS or n.unread) else 0, n.updated_at)
 
 
 class SyncEngine:
@@ -86,6 +113,11 @@ class SyncEngine:
         upserted = 0
         last: ListPage | None = None
         first = True
+        # `enrich_subject` exists on the real client only: demo mode has actors baked into its fixtures and
+        # must stay byte-for-byte identical, so a client without it is never asked.
+        enrich = getattr(client, "enrich_subject", None)
+        budget = _ENRICH_BUDGET
+        sem = asyncio.Semaphore(_ENRICH_CONCURRENCY)
         while page_number is not None:
             page = await client.list_notifications(
                 page=page_number,
@@ -99,11 +131,76 @@ class SyncEngine:
             if page.not_modified:
                 break  # nothing changed upstream; the cached rows are still correct
             items = [normalize(host, raw) for raw in page.items]
+            # The raw dicts carry `subject.latest_comment_url`, which Notification does not store.
+            pending = self._actors_to_refresh(items, page.items) if enrich is not None else []
             upserted += self.db.upsert_notifications(items)
             status.sync_done = upserted
+            if pending and budget > 0:
+                budget = await self._enrich_actors(enrich, pending, sem, budget)
             page_number = page.next_page
         assert last is not None, "client returned no page at all"
         return last, upserted
+
+    def _actors_to_refresh(
+        self, items: list[Notification], raws: list[dict]
+    ) -> list[tuple[Notification, str | None]]:
+        """Rows that need an actor, most worth-enriching first, with provenance we already paid for preserved.
+
+        The notifications API sends no actor at all, so a plain upsert would wipe a previously enriched actor
+        on every unchanged row: those keep what the database holds instead of re-fetching. A row whose stored
+        actor is still ``NULL`` goes back on the queue, which is how a page that ran out of budget finishes on
+        a later pass.
+        """
+        refreshed: list[tuple[Notification, str | None]] = []
+        leftovers: list[tuple[Notification, str | None]] = []
+        for n, raw in zip(items, raws):
+            if n.actor is not None:  # a client that already told us (or a fixture) needs nothing
+                continue
+            url = _latest_comment_url(raw)
+            stored = self.db.get(n.id)
+            if stored is None:
+                refreshed.append((n, url))
+                continue
+            if stored.updated_at == n.updated_at:
+                n.actor, n.actor_role = stored.actor, stored.actor_role
+                if stored.actor is None:
+                    leftovers.append((n, url))
+                continue
+            refreshed.append((n, url))  # moved since we last saw it: whoever touched it may have changed
+        refreshed.sort(key=_enrich_priority, reverse=True)
+        leftovers.sort(key=_enrich_priority, reverse=True)
+        return refreshed + leftovers
+
+    async def _enrich_actors(
+        self,
+        enrich: Any,
+        pending: list[tuple[Notification, str | None]],
+        sem: asyncio.Semaphore,
+        budget: int,
+    ) -> int:
+        """Fill in the top `budget` rows concurrently and return what is left of this pass's budget.
+
+        Rows are already committed by the time we get here, so an enrichment failure can only cost provenance,
+        never a notification. Hard GitHub problems (auth, offline, rate limit) are re-raised after the batch,
+        so the host chip tells the truth instead of quietly showing unknowns forever.
+        """
+        batch = pending[:budget]
+        problems: list[GitHubError] = []
+
+        async def one(n: Notification, latest_comment_url: str | None) -> None:
+            async with sem:
+                try:
+                    actor, role = await enrich(n, latest_comment_url)
+                except GitHubError as err:  # 'unknown' answers already came back as (None, 'unknown')
+                    problems.append(err)
+                    return
+                n.actor, n.actor_role = actor, role
+
+        await asyncio.gather(*(one(n, url) for n, url in batch))
+        self.db.upsert_notifications([n for n, _ in batch])  # second write only for the rows we enriched
+        if problems:
+            raise problems[0]
+        return budget - len(batch)
 
     def _record_success(self, host: str, page: ListPage, upserted: int, now: str) -> None:
         status = self._status(host)

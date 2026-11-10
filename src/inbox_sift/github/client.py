@@ -9,15 +9,17 @@ Implements the ``GitHubClient`` protocol with an ``httpx``-backed client. Design
 * Every failure is surfaced as :class:`~inbox_sift.github.errors.GitHubError` with a
   ``kind`` the sync engine can branch on; the token never appears in messages or repr.
 
-Known limits (deliberate, conservative): ``get_detail`` does NOT do timeline
-enrichment yet — PRs get merge/size status from the pull payload only (reviews and
-check rolls up are a follow-up), and non-PR kinds get no extra fetch at all, with
-participants taken from the locally-known actor when present (the raw subject's
-``user`` is not stored on :class:`~inbox_sift.models.Notification`).
+Enrichment lives here too: ``enrich_subject`` answers "who is the actor behind this row, and what can we
+prove about them" for the sync engine, and ``get_detail`` builds the detail panel (PR status, activity,
+participants) from a handful of bounded requests. The mapping rules themselves are pure functions in
+:mod:`~inbox_sift.github.enrich`. Kinds that are not issues or PRs still get the conservative payload with no
+extra network at all, and a sub-request we lack permission for degrades one widget instead of failing the
+whole detail — a missing check list must never break the inbox.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 from dataclasses import dataclass
@@ -27,6 +29,7 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 
 from ..models import Notification
+from . import enrich
 from .errors import GitHubError
 
 # fullmatch (not match+`$`): `$` also matches before a trailing newline, which would let
@@ -35,9 +38,16 @@ _HOST_RE = re.compile(r"[A-Za-z0-9.-]+(:\d+)?")
 _THREAD_ID_RE = re.compile(r"^\d+$")
 _LINK_PART_RE = re.compile(r'<([^>]+)>;\s*rel="next"')
 
-# mergeable_state -> conservative merge pill; anything unrecognised is 'waiting'.
-_MERGE_STATES = {"clean": "ready", "blocked": "blocked", "dirty": "blocked", "unstable": "blocked"}
-_MERGE_TEXT = {"ready": "ready to merge", "blocked": "merge blocked", "waiting": "waiting for merge status"}
+# '/repos/{owner}/{repo}/{pulls|issues|releases}/{number}'; anything else is not a thread we can enrich.
+_SUBJECT_PATH_RE = re.compile(r"^/repos/(?P<repo>[^/]+/[^/]+)/(?P<kind>[a-z_]+)/(?P<number>\d+)/?$")
+
+# Sub-request failures we absorb by leaving one widget out. Server/offline/rate-limit errors still fail the
+# detail, because the panel's Retry button is the right answer for those.
+_DEGRADABLE: frozenset[str] = frozenset({"not_found", "forbidden", "malformed"})
+
+# "Everything the panel needs, in one page" — the roll-ups are counted client-side from what we fetched.
+_PER_PAGE_ROLLUPS = 100
+_PER_PAGE_TIMELINE = 30
 
 
 def api_base(host: str) -> str:
@@ -156,6 +166,10 @@ class HttpGitHubClient:
                 "Authorization": f"Bearer {token}",
             },
         )
+        # 'who am I' is answered once per client and reused by every detail panel; None means we asked and
+        # could not, which is different from never having asked.
+        self._viewer: str | None = None
+        self._viewer_known = False
 
     def __repr__(self) -> str:
         return f"HttpGitHubClient(host={self.host!r})"
@@ -282,44 +296,207 @@ class HttpGitHubClient:
         return path
 
     async def get_detail(self, n: Notification) -> dict:
-        if n.kind != "pr":
-            # Conservative: no extra network for non-PRs yet. The subject's own author is
-            # not stored on Notification, so we surface the locally-known actor only.
-            participants = (
-                [{"login": n.actor, "role": n.actor_role or "unknown", "is_you": False}] if n.actor else []
-            )
-            return {
-                "pr_status": None,
-                "events": [],
-                "events_total": 0,
-                "participants": participants,
-                "html_url": n.html_url,
-            }
-        if not n.subject_url:
-            raise GitHubError("malformed", "PR notification has no subject URL")
-        data = self._json(await self._request("GET", self._subject_path(n.subject_url)))
+        """The Detail payload the panel renders. Only issues and PRs cost extra requests."""
+        if n.kind == "pr":
+            if not n.subject_url:
+                raise GitHubError("malformed", "PR notification has no subject URL")
+            return await self._pr_detail(n)
+        if n.kind == "issue" and n.subject_url:
+            detail = await self._issue_detail(n)
+            if detail is not None:
+                return detail
+        return _conservative_detail(n)
+
+    # ------------------------------------------------------------------ enrichment
+
+    async def enrich_subject(self, n: Notification, latest_comment_url: str | None) -> tuple[str | None, str]:
+        """Provenance for a row's actor: who did the thing GitHub pointed this notification at.
+
+        ``latest_comment_url`` is read out of the raw notification by the sync engine (it is not on
+        :class:`~inbox_sift.models.Notification`). When GitHub sends us a newer comment than the subject
+        itself, that commenter is the row's actor and the role is ``'last commenter'`` — we know they
+        commented most recently, not that they ever authored the thread. Anything we cannot read comes back
+        as ``(None, 'unknown')`` rather than a plausible guess; transport and rate-limit problems propagate
+        so the host status can report them.
+        """
+        try:
+            if latest_comment_url and latest_comment_url != n.subject_url:
+                return enrich.commenter(await self._get_object(latest_comment_url))
+            if not n.subject_url:
+                return None, "unknown"
+            if n.kind in enrich.SUBJECT_PERSON_KEY:
+                return enrich.subject_person(await self._get_object(n.subject_url), n.kind)
+            # Check suites, workflow runs and friends: the subject is not a person-shaped resource.
+            return None, "unknown"
+        except GitHubError as err:
+            if err.kind in _DEGRADABLE:
+                return None, "unknown"
+            raise
+
+    # ------------------------------------------------------------------ detail internals
+
+    async def _get_object(self, url: str) -> dict:
+        return await self._get_object_path(self._subject_path(url))
+
+    async def _get_object_path(self, path: str) -> dict:
+        data = self._json(await self._request("GET", path))
         if not isinstance(data, dict):
-            raise GitHubError("malformed", "pull payload was not an object", status=200)
-        merge = _MERGE_STATES.get(str(data.get("mergeable_state", "")), "waiting")
-        author = data.get("user")
-        participants = (
-            [{"login": author["login"], "role": "author", "is_you": False}]
-            if isinstance(author, dict) and isinstance(author.get("login"), str)
-            else []
+            raise GitHubError("malformed", f"{path} was not a JSON object", status=200)
+        return data
+
+    async def _optional(self, path: str, per_page: int) -> Any:
+        """A detail sub-request whose failure costs one widget instead of the whole panel."""
+        try:
+            return self._json(await self._request("GET", path, params={"per_page": per_page}))
+        except GitHubError as err:
+            if err.kind in _DEGRADABLE:
+                return None
+            raise
+
+    async def _optional_list(self, path: str, per_page: int) -> list[dict]:
+        return enrich.dicts(await self._optional(path, per_page))
+
+    async def _optional_check_runs(self, path: str) -> list[dict]:
+        data = await self._optional(path, _PER_PAGE_ROLLUPS)
+        return enrich.dicts(data.get("check_runs") if isinstance(data, dict) else None)
+
+    async def _get_viewer(self) -> str | None:
+        """Who the token belongs to, asked once per client. No answer simply means no 'you' in the panel."""
+        if not self._viewer_known:
+            self._viewer_known = True
+            try:
+                self._viewer = await self.viewer_login()
+            except GitHubError:
+                self._viewer = None
+        return self._viewer
+
+    async def _pr_requests(self, repo: str, number: str) -> tuple[dict, list[dict], list[dict], list[dict]]:
+        """The pull, its reviews and its timeline go out together; checks join when ``head.sha`` lands.
+
+        Reviews and checks are addressed by repository + number, which the notification already gives us, so
+        only the commit SHA forces a second wave. Sub-request failures degrade a widget; a failed pull request
+        fetch fails the detail, because there is nothing left to show.
+        """
+        pull = f"/repos/{repo}/pulls/{number}"
+        pr_task = asyncio.create_task(self._get_object_path(pull))
+        reviews_task = asyncio.create_task(self._optional_list(f"{pull}/reviews", _PER_PAGE_ROLLUPS))
+        timeline_task = asyncio.create_task(
+            self._optional_list(f"/repos/{repo}/issues/{number}/timeline", _PER_PAGE_TIMELINE)
         )
+        checks_task: asyncio.Task | None = None
+        try:
+            pr = await pr_task
+            sha = _head_sha(pr)
+            if sha:
+                checks_task = asyncio.create_task(
+                    self._optional_check_runs(f"/repos/{repo}/commits/{sha}/check-runs")
+                )
+            reviews = await reviews_task
+            timeline = await timeline_task
+            check_runs = [] if checks_task is None else await checks_task
+        except BaseException:
+            extra = [] if checks_task is None else [checks_task]
+            for task in extra + [reviews_task, timeline_task]:
+                task.cancel()
+            # Drained, not dropped: an abandoned task's exception would never be read.
+            await asyncio.gather(pr_task, reviews_task, timeline_task, *extra, return_exceptions=True)
+            raise
+        return pr, reviews, timeline, check_runs
+
+    async def _pr_detail(self, n: Notification) -> dict:
+        match = _SUBJECT_PATH_RE.match(self._subject_path(n.subject_url))
+        if match is None:
+            raise GitHubError("malformed", "PR subject URL is not a repository thread API path")
+        repo, number = match.group("repo"), match.group("number")
+        pr, reviews, timeline, check_runs = await self._pr_requests(repo, number)
+        requested = enrich.logins(pr.get("requested_reviewers"))
+        # 'who am I' is only worth a request once something could refer to the viewer, so a cold PR is cheap.
+        viewer = await self._get_viewer() if (requested or timeline) else None
+        passed, failed = enrich.check_rollup(check_runs)
+        states = enrich.review_states(reviews)
+        merge, merge_text = enrich.merge_rollup(failed, states, enrich.text(pr.get("mergeable_state")))
+        events, events_total = enrich.timeline_events(timeline, viewer)
         return {
             "pr_status": {
-                "additions": int(data.get("additions") or 0),
-                "deletions": int(data.get("deletions") or 0),
-                "files": int(data.get("changed_files") or 0),
-                "checks_passed": 0,  # timeline/checks enrichment is a follow-up
-                "checks_failed": [],
-                "reviews": "",
+                "additions": _count(pr.get("additions")),
+                "deletions": _count(pr.get("deletions")),
+                "files": _count(pr.get("changed_files")),
+                "checks_passed": passed,
+                "checks_failed": failed,
+                "reviews": enrich.reviews_text(states, requested, viewer),
                 "merge": merge,
-                "merge_text": _MERGE_TEXT[merge],
+                "merge_text": merge_text,
             },
-            "events": [],
-            "events_total": 0,
-            "participants": participants,
-            "html_url": str(data.get("html_url") or n.html_url),
+            "events": events,
+            "events_total": events_total,
+            "participants": enrich.participants(_author(pr), timeline, viewer, n.reason),
+            "html_url": enrich.text(pr.get("html_url")) or n.html_url,
         }
+
+    async def _issue_detail(self, n: Notification) -> dict | None:
+        """Issues get the same activity and people, minus the review/check roll-up that PRs alone have."""
+        path = self._subject_path(n.subject_url)
+        match = _SUBJECT_PATH_RE.match(path)
+        if match is None:
+            return None  # not an addressable thread: the conservative payload beats a failed panel
+        issue, timeline = await _settled(
+            self._get_object_path(path),
+            self._optional_list(f"/repos/{match.group('repo')}/issues/{match.group('number')}/timeline",
+                                _PER_PAGE_TIMELINE),
+        )
+        viewer = await self._get_viewer() if timeline else None
+        events, events_total = enrich.timeline_events(timeline, viewer)
+        return {
+            "pr_status": None,
+            "events": events,
+            "events_total": events_total,
+            "participants": enrich.participants(_author(issue), timeline, viewer, n.reason),
+            "html_url": enrich.text(issue.get("html_url")) or n.html_url,
+        }
+
+
+
+def _conservative_detail(n: Notification) -> dict:
+    """No extra network: releases, discussions, deploys and commits show only what the row already knows.
+
+    The subject's own author is not stored on :class:`~inbox_sift.models.Notification`, so the actor we
+    enriched earlier is the only person we can name — and with its real provenance, or 'role unknown'.
+    """
+    return {
+        "pr_status": None,
+        "events": [],
+        "events_total": 0,
+        "participants": (
+            [{"login": n.actor, "role": n.actor_role or "unknown", "is_you": False}] if n.actor else []
+        ),
+        "html_url": n.html_url,
+    }
+
+
+def _author(payload: dict) -> str | None:
+    return enrich.person_login(payload.get("user"))
+
+
+def _head_sha(payload: dict) -> str:
+    head = payload.get("head")
+    return enrich.text(head.get("sha")) if isinstance(head, dict) else ""
+
+
+def _count(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+async def _settled(*coros: Any) -> list[Any]:
+    """Await concurrent requests, then raise the first failure.
+
+    ``gather(return_exceptions=True)`` matters here: with the default behaviour a sibling keeps running after
+    we bail, and its exception is never read.
+    """
+    results = await asyncio.gather(*coros, return_exceptions=True)
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
+    return list(results)

@@ -13,3 +13,4 @@ dist/
 *.db-wal
 *.db-shm
 .e2e-data/
+screenshots/

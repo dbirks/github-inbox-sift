@@ -313,7 +313,7 @@ async def test_get_detail_pr_fetches_subject_path_only() -> None:
     assert status["files"] == 6
     assert status["checks_passed"] == 0
     assert status["checks_failed"] == []
-    assert status["reviews"] == ""
+    assert status["reviews"] == "no reviews yet"  # enrichment replaced the blank roll-up with an honest label
     assert status["merge"] == "ready"
     assert detail["participants"] == [{"login": "mlee", "role": "author", "is_you": False}]
     assert detail["html_url"] == "https://github.com/acme/sync-service/pull/482"
@@ -364,12 +364,14 @@ async def test_get_detail_pr_bad_subject_url() -> None:
     await client.aclose()
 
 
-async def test_get_detail_non_pr_makes_no_request() -> None:
+async def test_get_detail_non_thread_makes_no_request() -> None:
+    """Only issues and PRs are enriched; everything else still costs nothing (see tests/py/test_enrich.py)."""
+
     def handler(request: httpx.Request) -> httpx.Response:
-        raise AssertionError("no network call expected for non-PR details")
+        raise AssertionError("no network call expected for non-issue/PR details")
 
     client = client_for(handler)
-    n = make_notification(kind="issue", actor="octocat", actor_role="commenter")
+    n = make_notification(kind="discussion", actor="octocat", actor_role="commenter")
     detail = await client.get_detail(n)
     assert detail["pr_status"] is None
     assert detail["participants"] == [{"login": "octocat", "role": "commenter", "is_you": False}]
