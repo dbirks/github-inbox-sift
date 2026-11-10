@@ -81,7 +81,10 @@ uv run ruff check src tests
 pnpm install                              # dev-only: Playwright
 pnpm exec playwright test                 # E2E specs; each run starts its own `inbox-sift --demo` server
 scripts/smoke_install.sh                  # uv tool install into a temp dir, run with an empty PATH
+scripts/screenshots.sh                    # every view/state in light + dark via pnpx @playwright/cli
 ```
+
+[`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) maps each item of the design's acceptance checklist to its test.
 
 Exploratory checks use the Playwright agent CLI against a demo server:
 
