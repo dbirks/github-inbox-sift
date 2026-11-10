@@ -11,3 +11,7 @@
 [data-theme="dark"]{--paper:#1f1e1c;--surface:#282725;--ink:#ecebe6;--ink2:#d2cfc7;--muted:#a39f95;--line-strong:#4a4843;--line:#3a3935;--line-soft:#312f2c;--fill:#34332f;--fill-edge:#171614;--accent:#3f5ae6;--accent-edge:#2238a8;--accent-shadow:#0d1755;--accent-text:#9aabf2;--accent-wash:#2b2e3e;--accent-ring:#3b4472;--accent-grid:#343a56;--accent-dither:#3a4266;--wait-tag:#4a3a14;--wait-fg:#ffd58a;--wait-bar:#4a3a14;--wait-body:#2e291d;--wait-edge:#6b5520;--wait-pfg:#ffd58a;--q-tag:#3a3935;--q-fg:#c9c5bc;--q-body:#2b2a27;--q-edge:#4a4843;--q-pfg:#d2cfc7;--run-tag:#183a52;--run-fg:#9fd2f5;--run-strong:#4aa3e0;--fail-tag:#4a201b;--fail-fg:#ff9c8c;--fail-edge:#6b2a22;--fail-body:#33221f;--fail-pfg:#ffb3a6;--fail-strong:#e0503d;--done-tag:#1d3a26;--done-fg:#8fd4a3;--seg-done:#c9c5bc;--overlay:rgba(0,0,0,.5);--av-fg:#3a3833}
 
 :root { --font-text: 'Red Hat Text', system-ui, sans-serif; --font-mono: 'Red Hat Mono', ui-monospace, monospace; }
+
+/* Native controls (checkboxes, scrollbars) follow the app theme, not the OS. */
+[data-theme] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
