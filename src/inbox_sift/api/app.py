@@ -384,6 +384,11 @@ def create_app(ctx: AppContext) -> FastAPI:
             ctx.demo_scenario.host_problem = problem
         if isinstance(detail_fail, bool):
             ctx.demo_scenario.detail_fail = detail_fail
+        latency = body.get("latency_s")  # slow the fake GitHub down so a bulk run can be watched mid-flight
+        if latency is not None:
+            if not isinstance(latency, (int, float)) or isinstance(latency, bool) or not 0 <= latency <= 2:
+                return _invalid("latency_s", "must be a number of seconds between 0 and 2")
+            ctx.demo_scenario.latency_s = float(latency)
         if "ghe.corp" in ctx.clients:
             await ctx.sync.sync_host("ghe.corp")
         return {"ok": True}

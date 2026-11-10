@@ -515,3 +515,10 @@ async def test_demo_reset_cancels_a_running_bulk_op_and_clears_cached_details(ct
     assert ctx.notifications.counts()["filtered"] == 713
     assert ctx.db.get_detail(first) is None
     assert op not in ctx.bulk._tasks
+
+
+def test_demo_scenario_latency_is_validated_and_applied(client: TestClient, ctx: AppContext) -> None:
+    assert client.post("/api/demo/scenario", json={"latency_s": 0.2}).status_code == 200
+    assert ctx.demo_scenario.latency_s == 0.2
+    assert client.post("/api/demo/scenario", json={"latency_s": 5}).status_code == 422
+    assert client.post("/api/demo/scenario", json={"latency_s": "fast"}).status_code == 422

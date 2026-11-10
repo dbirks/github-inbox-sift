@@ -42,7 +42,7 @@ for THEME in light dark; do
   ev "() => $A.toggleMenu('filter')"; shot 03-filter-menu
   ev "() => $A.closeMenus()"; ev "() => $A.toggleMenu('more')"; shot 04-more-menu
   ev "() => $A.closeMenus()"
-  cli hover "[data-testid^=row-github]:nth-child(3)"; shot 05-row-hover
+  cli hover "[data-testid='row-github.com:100003']"; shot 05-row-hover
   cli press x; cli press J; cli press J; shot 06-multiselect
   cli press Escape; cli press Escape
   ev "() => $A.setSetting('density','balanced')"; shot 07-balanced
@@ -56,8 +56,10 @@ for THEME in light dark; do
   ev "() => $A.go('filtered')"; shot 12-filtered
   ev "() => $A.setGroup('repo')"; shot 13-filtered-grouped
   ev "() => $A.startBulkFiltered()"; shot 14-bulk-dialog 1
-  ev "() => $A.confirmBulk()"; shot 15-bulk-running 1.2
-  sleep 8; shot 16-bulk-finished
+  api POST /api/demo/scenario '{"latency_s":0.08}'   # slow enough to catch the tray mid-run
+  ev "() => $A.confirmBulk()"; shot 15-bulk-running 2
+  api POST /api/demo/scenario '{"latency_s":0.0}'
+  sleep 6; shot 16-bulk-finished
   ev "() => $A.closeBulk()"
   ev "() => $A.toggleHelp()"; shot 17-help
   ev "() => $A.toggleHelp()"
@@ -69,7 +71,8 @@ for THEME in light dark; do
   reset none
   shot 22-hosts-healthy
   api POST /api/demo/scenario '{"host_problem":"expired","detail_fail":true}'
-  cli reload; sleep 1.5; cli press j; shot 23-detail-error 1
+  cli reload; sleep 1.5
+  ev "() => $A.select('github.com:100000')"; shot 23-detail-error 1   # a PR, so the PR-status error shows
   cli resize 924 700; shot 24-narrow-924 1
   cli resize 1400 860
 done
